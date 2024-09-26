@@ -1,4 +1,10 @@
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using Azure.Identity;
+using Azure.ResourceManager;
 using Microsoft.Extensions.Options;
+using redis.WebAPi.Service.AzureShared;
+using redis.WebAPi.Service.IService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +16,20 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 //add configuration 0909
 builder.Services.AddCors();
+builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
+builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
+{
+    // 注册 ArmClientFactory，并从配置中传递订阅 ID
+    containerBuilder.Register(c =>
+    {
+        
+        return new AzureClientFactory();
+    }).SingleInstance();
+
+    // 注册 SubscriptionResourceService，延迟生成 SubscriptionResource
+    containerBuilder.RegisterType<SubscriptionResourceService>().AsSelf().SingleInstance();
+
+});
 
 var app = builder.Build();
 

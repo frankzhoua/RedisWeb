@@ -5,7 +5,7 @@ using Azure.Security.KeyVault.Secrets;
 using Azure.Core;
 using System.Reflection.Metadata.Ecma335;
 
-namespace Shared
+namespace redis.WebAPi.Service.AzureShared
 {
     public interface IRedisFunctionalTestKeyVaultObjectsRetriever
     {

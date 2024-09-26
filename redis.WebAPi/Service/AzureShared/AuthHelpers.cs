@@ -4,12 +4,12 @@ using Azure.Security.KeyVault.Secrets;
 using Microsoft.Identity.Client;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Shared
+namespace redis.WebAPi.Service.AzureShared
 {
     public class AuthHelpers
     {
         public static async Task<X509Certificate2> GetCertificateFromKeyVaultAsync(string certificateName,
-            Uri clientCertKeyVaultUri, 
+            Uri clientCertKeyVaultUri,
             string tenantId)
         {
             RedisFunctionalTestKeyVaultObjectsRetriever keyVaultObjectsRetriever = new RedisFunctionalTestKeyVaultObjectsRetriever(tenantId, clientCertKeyVaultUri);
@@ -88,7 +88,7 @@ namespace Shared
                 throw ex;
             }
         }
-    
+
         public static X509Certificate2 GetFunctionalTestCertFromLocalStore(string certificateSubjectName)
         {
             X509Store store = new(StoreName.My, StoreLocation.LocalMachine);
