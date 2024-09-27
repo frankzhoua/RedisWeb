@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using redis.WebAPi.Service.AzureShared;
-
+using redis.WebAPi.Service.IService;
 namespace redis.WebAPi.Controllers
 {
 
@@ -10,7 +10,7 @@ namespace redis.WebAPi.Controllers
     public class SubscriptionController : ControllerBase
     {
 
-        private readonly SubscriptionResourceService _subscriptionResourceService;
+        private readonly ISubscriptionResourceService _subscriptionResourceService;
 
         // 注入 SubscriptionResourceService
         public SubscriptionController(SubscriptionResourceService subscriptionResourceService)
@@ -42,7 +42,7 @@ namespace redis.WebAPi.Controllers
         {
             try
             {
-                var subscriptionResource = _subscriptionResourceService.GetSubscriptionResource();
+                var subscriptionResource = _subscriptionResourceService.GetSubscription();
                 return Ok(subscriptionResource.Data);
             }
             catch (Exception ex)

@@ -27,7 +27,9 @@ builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
     }).SingleInstance();
 
     // 注册 SubscriptionResourceService，延迟生成 SubscriptionResource
-    containerBuilder.RegisterType<SubscriptionResourceService>().AsSelf().SingleInstance();
+    containerBuilder.RegisterType<SubscriptionResourceService>().As<ISubscriptionResourceService>().SingleInstance();
+
+    containerBuilder.RegisterType<RedisCollectionService>().As<IRedisCollection>().SingleInstance();
 
 });
 

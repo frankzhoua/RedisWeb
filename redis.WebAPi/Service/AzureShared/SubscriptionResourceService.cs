@@ -28,15 +28,6 @@ namespace redis.WebAPi.Service.AzureShared
             _subscriptionResource = _armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + subscriptionId));
         }
 
-        // 获取 SubscriptionResource
-        public SubscriptionResource GetSubscriptionResource()
-        {
-            if (_subscriptionResource == null)
-            {
-                throw new InvalidOperationException("SubscriptionResource has not been set. Please provide a subscriptionId.");
-            }
-            return _subscriptionResource;
-        }
 
     }
 }
