@@ -3,6 +3,7 @@ using Autofac.Extensions.DependencyInjection;
 using Azure.Identity;
 using Azure.ResourceManager;
 using Microsoft.Extensions.Options;
+using redis.WebAPi.Service;
 using redis.WebAPi.Service.AzureShared;
 using redis.WebAPi.Service.IService;
 
@@ -19,6 +20,7 @@ builder.Services.AddCors();
 builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
 builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
 {
+
     // 注册 ArmClientFactory，并从配置中传递订阅 ID
     containerBuilder.Register(c =>
     {

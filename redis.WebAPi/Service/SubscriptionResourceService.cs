@@ -2,9 +2,10 @@
 using Azure.ResourceManager;
 using Azure.ResourceManager.Redis;
 using Azure.ResourceManager.Resources;
+using redis.WebAPi.Service.AzureShared;
 using redis.WebAPi.Service.IService;
 
-namespace redis.WebAPi.Service.AzureShared
+namespace redis.WebAPi.Service
 {
     public class SubscriptionResourceService : ISubscriptionResourceService
     {
@@ -17,8 +18,8 @@ namespace redis.WebAPi.Service.AzureShared
             _armClient = armClient.ArmClient;
         }
 
-        public SubscriptionResource GetSubscription() 
-        { 
+        public SubscriptionResource GetSubscription()
+        {
             return _subscriptionResource;
         }
 

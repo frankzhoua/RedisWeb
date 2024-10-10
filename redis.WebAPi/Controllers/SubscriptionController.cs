@@ -13,7 +13,7 @@ namespace redis.WebAPi.Controllers
         private readonly ISubscriptionResourceService _subscriptionResourceService;
 
         // 注入 SubscriptionResourceService
-        public SubscriptionController(SubscriptionResourceService subscriptionResourceService)
+        public SubscriptionController(ISubscriptionResourceService subscriptionResourceService)
         {
             _subscriptionResourceService = subscriptionResourceService;
         }
@@ -27,8 +27,13 @@ namespace redis.WebAPi.Controllers
             {
                 // 根据前端传入的 subscriptionId 生成 SubscriptionResource
                 _subscriptionResourceService.SetSubscriptionResource(subscriptionId);
+                List<string> groupNameList = new List<string>();
+                foreach (var s in _subscriptionResourceService.GetSubscription().GetResourceGroups().GetAll())
+                {
+                    groupNameList.Add(s.Data.Name);
+                }
 
-                return Ok("SubscriptionResource has been set.");
+                return Ok(groupNameList.ToList());
             }
             catch (Exception ex)
             {
