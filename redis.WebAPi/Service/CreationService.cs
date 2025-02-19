@@ -13,17 +13,14 @@ namespace redis.WebAPi.Service
     {
         private readonly IRedisCollection _redisCollection;
         private readonly ISubscriptionResourceService _subscriptionResourceService;
-        private readonly IConnectionVMService _connectionVMService;
         private static Random random = new Random();
 
         public CreationService(
             IRedisCollection redisCollection,
-            ISubscriptionResourceService subscriptionResourceService,
-            IConnectionVMService connectionVMService)
+            ISubscriptionResourceService subscriptionResourceService)
         {
             _redisCollection = redisCollection;
             _subscriptionResourceService = subscriptionResourceService;
-            _connectionVMService = connectionVMService;
         }
 
         public async Task CreateCache(RedisRequestModel redisReques)
