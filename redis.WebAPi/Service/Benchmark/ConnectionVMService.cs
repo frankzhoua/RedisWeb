@@ -2,81 +2,61 @@ using Azure.Core;
 using Azure.ResourceManager.Compute.Models;
 using Azure;
 using Azure.ResourceManager.Compute;
-using redis.WebAPi.Service.IService;
 using redis.WebAPi.Service.Benchmark;
+using redis.WebAPi.Repository.AppDbContext;
+using Microsoft.EntityFrameworkCore;
+
 
 
 namespace redis.WebAPi.Service.AzureShared
 {
-    public class ConnectionVMService : IConnectionVMService
+    public class ConnectionVMService 
     {
         private readonly AzureClientFactory _client;
-        private readonly BenchmarkService _benchmarkService;
         private readonly InsertBenchmarkService _insertBenchmarkService;
-        private const string MaxRunningTestsFile = "./running_benchmark_tests_count.txt";
-        private const int MaxRunningTests = 2;  // Maximum number of concurrent requests
-        public ConnectionVMService(AzureClientFactory client, BenchmarkService benchmarkService, InsertBenchmarkService insertBenchmarkService)
+        private readonly BenchmarkContent _dbContext;      
+
+        public ConnectionVMService(BenchmarkContent dbContext, AzureClientFactory client, InsertBenchmarkService insertBenchmarkService)
         {
+
             _client = client;
-            _benchmarkService = benchmarkService;
             _insertBenchmarkService = insertBenchmarkService;
+            _dbContext = dbContext;
+            
         }
 
-        public async Task<string> ConnectionVM(string name, string primary, int clients, int threads, int size, int requests, int pipeline, int times, string TimeStamp)
+        public async Task<string> ConnectionVM()
         {
             try
             {
-                var armClient = _client.ArmClient;
-                var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "fc2f20f5-602a-4ebd-97e6-4fae3f1f6424"));
-                var vm1 = (await subResource.GetResourceGroupAsync("MemtierbenchmarkTest")).Value.GetVirtualMachine("MemtierBenchmarkM3-Premium-P5");
-                string timeStamp = TimeStamp;
-                string fileName = $"output-{timeStamp}";
+                var benchmarkTask = await _dbContext.BenchmarkQueue
+                    .Where(b => b.Status == 2)  // 只处理待处理任务
+                    .OrderBy(b => b.TimeStamp)  // 按照时间戳排序，先处理早期任务
+                    .FirstOrDefaultAsync();
 
-                // Get an instance view of the virtual machine to check its status
-                var instanceView = await vm1.Value.InstanceViewAsync();
-                var statuses = instanceView.Value.Statuses;
-
-                // Check whether the VM is running
-                bool isRunning = statuses.Any(status => status.Code == "PowerState/running");
-
-                //if (!isRunning)
-                //{
-                //    await vm1.Value.PowerOnAsync(WaitUntil.Completed);
-                //    Console.WriteLine("The VM is being started");
-                //}
-                //else
-                //{
-                //    Console.WriteLine("The VM is already running");
-                //}
-                // 2. Check that the number of concurrent requests does not exceed the maximum
-                int runningTests = GetRunningTestsCount();
-
-                while (runningTests <= 0)
+                if (benchmarkTask == null)
                 {
-                    await Task.Delay(50000); // Check the number of concurrent files every 50 seconds
-                    runningTests = GetRunningTestsCount();
+                    return "No pending benchmark tasks found.";
                 }
-                // 3. Start a new benchmark
-                UpdateRunningTestsCount(runningTests - 1); // Update the number of concurrent requests in the file to reduce by 1
-                await _benchmarkService.UpdateBenchmarkStatus(name, 3);
-                
-                //todo:判断SSL和No-SSL
-                var runCommandInput = new RunCommandInput("RunShellScript")
+
+                string cacheName = benchmarkTask.Name;
+                string primary = benchmarkTask.pw;
+                int clients = benchmarkTask.Clients;
+                int threads = benchmarkTask.Threads;
+                int size = benchmarkTask.Size;
+                int requests = benchmarkTask.Requests;
+                int pipeline = benchmarkTask.Pipeline;
+                int times = benchmarkTask.Times;
+
+                var vm = await GetVMByCacheName(cacheName);
+                if (!await IsVMAvailableForTask(vm))
                 {
-                    Script = {
-                        "cd /home/azureuser",
-                        $"./manage_screen_session.sh {name} {primary} {threads} {clients} {requests} {pipeline} {size} {times} {fileName}",
-                    }
-                };
+                    throw new InvalidOperationException("VM is busy with another task.");
+                }
 
-                var response = (await vm1.Value.RunCommandAsync(WaitUntil.Completed, runCommandInput)).Value;
+                // 运行基准测试
+                string output = await RunBenchmarkOnVM(vm, cacheName, primary, clients, threads, size, requests, pipeline, times);
 
-                var output = string.Join("\n", response.Value.Select(r => r.Message));
-                // 3. Increase the number of concurrent updates by 1 after the execution is complete
-                UpdateRunningTestsCount(runningTests); 
-                                                      
-                await _insertBenchmarkService.InsertBenchmarkData(output, name, timeStamp);
-                await _benchmarkService.UpdateBenchmarkStatus(name, 1);
                 return output;
             }
             catch (Exception ex)
@@ -85,41 +65,118 @@ namespace redis.WebAPi.Service.AzureShared
                 throw;
             }
         }
-        // Gets the number of benchmarks currently running
-        private int GetRunningTestsCount()
+
+        // Check whether the VM is idle to ensure that the task execution status is more accurately determined
+        private async Task<bool> IsVMAvailableForTask(VirtualMachineResource vm)
         {
-            try
+            var instanceView = await vm.InstanceViewAsync();
+            var statuses = instanceView.Value.Statuses;
+        
+            bool isRunningAnotherTask = statuses.Any(status => status.Code == "PowerState/running" && status.DisplayStatus.Contains("Running"));
+  
+            return !isRunningAnotherTask;
+        }
+
+
+        private async Task<string> RunBenchmarkOnVM(VirtualMachineResource vm, string name, string pw, int clients, int threads, int size, int requests, int pipeline, int times)
+        {
+            var timeStamp = DateTime.Now;
+            string fileName = $"output-{timeStamp}";
+
+            var runCommandInput = new RunCommandInput("RunShellScript")
             {
-                if (File.Exists(MaxRunningTestsFile))
+                Script =
+            {
+                "cd /home/azureuser",
+                $"./manage_screen_session.sh {name} {pw} {threads} {clients} {requests} {pipeline} {size} {times} {fileName}",
+            }
+            };
+
+            var response = (await vm.RunCommandAsync(WaitUntil.Completed, runCommandInput)).Value;
+            var output = string.Join("\n", response.Value.Select(r => r.Message));
+
+            if (!string.IsNullOrEmpty(output))
+            {
+                await _insertBenchmarkService.InsertBenchmarkResultData(output, name, timeStamp);
+                var removedData = await _dbContext.BenchmarkQueue.FirstOrDefaultAsync(u => u.Name == name);
+                if (removedData != null)
                 {
-                    var content = File.ReadAllText(MaxRunningTestsFile);
-                    if (int.TryParse(content, out int runningTests))
-                    {
-                        return runningTests;
-                    }
+                    _dbContext.BenchmarkQueue.Remove(removedData);
+                    await _dbContext.SaveChangesAsync();
                 }
-                return MaxRunningTests; 
+
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error reading running tests file: {ex.Message}");
-                return MaxRunningTests;
-            }
+
+            return output;
         }
-        // Update the number of benchmarks (concurrency in the file)
-        private void UpdateRunningTestsCount(int newCount)
+
+
+
+        public async Task<VirtualMachineResource> GetVirtualMachineAsync(string vmName)
         {
-            try
-            {
-                File.WriteAllText(MaxRunningTestsFile, newCount.ToString());
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error writing running tests file: {ex.Message}");
-            }
+            var armClient = _client.ArmClient;
+            var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "fc2f20f5-602a-4ebd-97e6-4fae3f1f6424"));
+            var vmResource = (await subResource.GetResourceGroupAsync("MemtierbenchmarkTest")).Value.GetVirtualMachines().GetAsync(vmName).Result;
+
+            return vmResource;
         }
 
+        public async Task<VirtualMachineResource> GetVMByCacheName(string cacheName)
+        {
+            string vmName = AllocateVMByCacheName(cacheName);
+            return await GetVirtualMachineAsync(vmName);
+        }
 
+        private string AllocateVMByCacheName(string cacheName)
+        {
+            cacheName = cacheName.ToLower();
+
+
+
+            if (cacheName.Contains("p1") || cacheName.Contains("p2")) return "MemtierBenchmarkM1-Premium-P1P2";
+            if (cacheName.Contains("p3") || cacheName.Contains("p4")) return "MemtierBenchmarkM1-Premium-P1P2";
+            if (cacheName.Contains("p5")) return "MemtierBenchmarkM1-Premium-P1P2";
+
+            if (cacheName.Contains("c0") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+            if (cacheName.Contains("c1") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+            if (cacheName.Contains("c2") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+            if (cacheName.Contains("c3") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+            if (cacheName.Contains("c4") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+            if (cacheName.Contains("c5") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+            if (cacheName.Contains("c6") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+
+            if (cacheName.Contains("c0") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+            if (cacheName.Contains("c1") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+            if (cacheName.Contains("c2") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+            if (cacheName.Contains("c3") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+            if (cacheName.Contains("c4") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+            if (cacheName.Contains("c5") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+            if (cacheName.Contains("c6") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+
+
+            //if (cacheName.Contains("p1") || cacheName.Contains("p2")) return "MemtierBenchmarkM1-Premium-P1P2";
+            //if (cacheName.Contains("p3") || cacheName.Contains("p4")) return "MemtierBenchmarkM2-Premium-P3P4";
+            //if (cacheName.Contains("p5")) return "MemtierBenchmarkM3-Premium-P5";
+
+            //if (cacheName.Contains("c0") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+            //if (cacheName.Contains("c1") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+            //if (cacheName.Contains("c2") && cacheName.Contains("standard")) return "MemtierBenchmarkM2-Standard-C2C3";
+            //if (cacheName.Contains("c3") && cacheName.Contains("standard")) return "MemtierBenchmarkM2-Standard-C2C3";
+            //if (cacheName.Contains("c4") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
+            //if (cacheName.Contains("c5") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
+            //if (cacheName.Contains("c6") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
+
+            //if (cacheName.Contains("c0") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+            //if (cacheName.Contains("c1") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+            //if (cacheName.Contains("c2") && cacheName.Contains("basic")) return "MemtierBenchmarkM2-Basic-C3C4";
+            //if (cacheName.Contains("c3") && cacheName.Contains("basic")) return "MemtierBenchmarkM2-Basic-C3C4";
+            //if (cacheName.Contains("c4") && cacheName.Contains("basic")) return "MemtierBenchmarkM3-Basic-C4C5C6";
+            //if (cacheName.Contains("c5") && cacheName.Contains("basic")) return "MemtierBenchmarkM3-Basic-C4C5C6";
+            //if (cacheName.Contains("c6") && cacheName.Contains("basic")) return "MemtierBenchmarkM3-Basic-C4C5C6";
+
+            throw new ArgumentException($"Invalid cache name: {cacheName}");
+        }
     }
+
 }
 

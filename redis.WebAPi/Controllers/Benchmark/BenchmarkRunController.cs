@@ -3,6 +3,8 @@ using redis.WebAPi.Repository.AppDbContext;
 using redis.WebAPi.Model;
 using redis.WebAPi.Service.IService;
 using redis.WebAPi.Service;
+using Microsoft.EntityFrameworkCore;
+using redis.WebAPi.Service.Benchmark;
 
 namespace Benchmark_API.Controllers
 {
@@ -10,60 +12,51 @@ namespace Benchmark_API.Controllers
     [Route("api/[controller]")]
     public class BenchmarkRunController : ControllerBase
     {
-        private readonly BenchmarkDbContext _dbContext;  
-        private readonly IConnectionVMService _connectionVMService;
-        private readonly BenchmarkService _benchmarkService;
+        private readonly BenchmarkContent _dbContext;  
+        private readonly OperationSQL _benchmarkService;
 
         // Inject BenchmarkDbContext and ConnectionVMService through the constructor
-        public BenchmarkRunController(BenchmarkDbContext dbContext, IConnectionVMService connectionVMService, BenchmarkService benchmarkService)
+        public BenchmarkRunController(BenchmarkContent dbContext, OperationSQL benchmarkService)
         {
             _dbContext = dbContext;
-            _connectionVMService = connectionVMService;
             _benchmarkService = benchmarkService;
         }
 
         // Receive the front-end parameters, then put them into the database and invoke the VM operation
-        [HttpPost]
-        public async Task<IActionResult> InvokeVMOperation(RunBenchmarkData model)
+        [HttpPost("enqueue")]
+        public async Task<IActionResult> InvokeVMOperation([FromBody] BenchmarkRequestModel benchmarkRequest)
         {
             try
             {
-                var Parameters = new Parameters
+                var benchmarkTask = new BenchmarkRequestModel
                 {
-                    Name = model.Name,
-                    Region = model.Region,
-                    Description = model.Description,
-                    Clients = model.Clients,
-                    Threads = model.Threads,
-                    Size = model.Size,
-                    Requests = model.Requests,
-                    Pipeline = model.Pipeline,
-                    Status = 2,  // If the status is 2, it is in the queue
-                    TimeStamp = model.TimeStamp,
-                    //Times
+                    Name = benchmarkRequest.Name,
+                    Clients = benchmarkRequest.Clients,
+                    Threads = benchmarkRequest.Threads,
+                    Size = benchmarkRequest.Size,
+                    Requests = benchmarkRequest.Requests,
+                    Pipeline = benchmarkRequest.Pipeline,
+                    Times = benchmarkRequest.Times,
+                    TimeStamp = DateTime.Now,
+                    Status = 2  
                 };
-                _dbContext.Parameters.Add(Parameters);
+
+                _dbContext.BenchmarkQueue.Add(benchmarkTask);
+                _dbContext.BenchmarkRequest.Add(benchmarkTask);
                 await _dbContext.SaveChangesAsync();
 
-
-                // Call ConnectionVMService to perform the virtual machine operation and get the output
-                string vmOutput = await _connectionVMService.ConnectionVM(
-                    model.Name,
-                    model.Primary,
-                    model.Clients,
-                    model.Threads,
-                    model.Size,
-                    model.Requests,
-                    model.Pipeline,
-                    model.Times,
-                    model.TimeStamp
-                );
-
-                return Ok(new { message = "Benchmark run completed successfully", output = vmOutput });
+                return Ok("Task has been enqueued.");
             }
             catch (Exception ex)
             {
-                await _benchmarkService.UpdateBenchmarkStatus(model.Name, 4);
+                var parameters = await _dbContext.BenchmarkRequest.FirstOrDefaultAsync(p => p.Name == benchmarkRequest.Name && p.TimeStamp == benchmarkRequest.TimeStamp);
+
+                if (parameters != null)
+                {
+                    parameters.Status = 4;  // Status 4 indicates failure
+                    await _dbContext.SaveChangesAsync();
+                }
+                await _benchmarkService.UpdateCacheStatus (benchmarkRequest.Name, SQLDataBaseEnum.BenchmarkRequest,  4);
                 return StatusCode(500, new { message = "Error occurred during benchmark execution", error = ex.Message });
             }
         }

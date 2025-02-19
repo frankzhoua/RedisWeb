@@ -7,25 +7,25 @@ namespace redis.WebAPi.Service.Benchmark
     // Rename class to match constructor and class name
     public class InsertBenchmarkService 
     {
-        private readonly BenchmarkDbContext _context;
+        private readonly BenchmarkContent _context;
 
-        public InsertBenchmarkService(BenchmarkDbContext context)
+        public InsertBenchmarkService(BenchmarkContent context)
         {
             _context = context;
         }
 
         // Insert the run result into the database
-        public async Task InsertBenchmarkData(string output, string cacheName, string timeStamp)
+        public async Task InsertBenchmarkResultData(string output, string cacheName, DateTime timeStamp)
         {
             try
             {
                 // Extract all Entry blocks
                 var entries = ExtractEntries(output);
 
-                // Iterate through each Entry, generate a BenchmarkData1 object and insert it into the database
+                // Iterate through each Entry, generate a BenchmarkRequestData object and insert it into the database
                 foreach (var entry in entries)
                 {
-                    var BenchmarkData1 = new BenchmarkData1
+                    var BenchmarkData1 = new BenchmarkResultData
                     {
                         CacheName = cacheName,
                         TotalDuration = entry.TotalDuration,
@@ -38,7 +38,7 @@ namespace redis.WebAPi.Service.Benchmark
                         GetsP99_99 = entry.GetsP99_99,
                         TimeStamp = timeStamp
                     };
-                    await _context.BenchmarkData1.AddAsync(BenchmarkData1);
+                    await _context.BenchmarkResultData.AddAsync(BenchmarkData1);
                 }
                 await _context.SaveChangesAsync();
                 Console.WriteLine("Benchmark data inserted successfully.");

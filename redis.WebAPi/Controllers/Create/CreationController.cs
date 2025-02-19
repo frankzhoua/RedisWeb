@@ -12,12 +12,10 @@ namespace redis.WebAPi.Controllers
     public class CreationController : ControllerBase
     {
         private readonly ICreationService _creationService;
-        private readonly IConnectionVMService _connectionVMService;
 
-        public CreationController(IConnectionVMService connectionVMService, ICreationService creationService)
+        public CreationController( ICreationService creationService)
         {
-            _creationService = creationService;
-            _connectionVMService = connectionVMService;
+            _creationService = creationService;   
         }
 
         [HttpPost()]

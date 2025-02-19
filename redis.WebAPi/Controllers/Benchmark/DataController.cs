@@ -8,20 +8,20 @@ namespace Benchmark_API.Controllers
     [Route("api/[controller]")]
     public class DataController : ControllerBase
     {
-        private readonly BenchmarkDbContext _dbContext;
+        private readonly BenchmarkContent _dbContext;
 
-        public DataController(BenchmarkDbContext dbContext)
+        public DataController(BenchmarkContent dbContext)
         {
             _dbContext = dbContext;
         }
 
         [HttpGet("AllData")]
-        public async Task<IActionResult> GetAllData([FromQuery] string TimeStamp)
+        public async Task<IActionResult> GetAllData([FromQuery] DateTime TimeStamp)
         {
             
-            var query = _dbContext.BenchmarkData1.AsQueryable();
+            var query = _dbContext.BenchmarkResultData.AsQueryable();
 
-            if (!string.IsNullOrEmpty(TimeStamp))
+            if (!string.IsNullOrEmpty(TimeStamp.ToString()))
             {
                 query = query.Where(b => b.TimeStamp == TimeStamp);
             }
@@ -46,26 +46,28 @@ namespace Benchmark_API.Controllers
             return Ok(data);
         }
 
-        [HttpGet("FinalData")]
-        public async Task<IActionResult> FinalGet()
+        [HttpGet("GetBenchmarkRequestData")]
+        public async Task<IActionResult> GetBenchmarkRequestData()
         {
-            var data = await _dbContext.FinalBenchmarkData
-                .Select(f => new
+            // Use Entity Framework to query the Parameters table
+            var parameters = await _dbContext.BenchmarkRequest
+                .Select(p => new
                 {
-                    f.Id,
-                    f.CacheName,
-                    f.TotalDuration,
-                    f.TimeUnit,
-                    f.GetsRPS,
-                    f.GetsAverageLatency,
-                    f.GetsP50,
-                    f.GetsP99,
-                    f.GetsP99_90,
-                    f.GetsP99_99
+                    p.Name,
+                    p.Region,
+                    Description = p.Description ?? "No Description",
+                    p.Clients,
+                    p.Threads,
+                    p.Size,
+                    p.Requests,
+                    p.Pipeline,
+                    p.Status,
+                    p.TimeStamp
                 })
                 .ToListAsync();
 
-            return Ok(data);
+            return Ok(parameters);
         }
+
     }
 }

@@ -20,13 +20,14 @@ builder.Services.AddScoped<AuthFilter>();
 builder.Services.AddControllers();
 // Swagger/OpenAPI configuration
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHostedService<BenchmarkQueueProcessor>();
 builder.Services.AddSwaggerGen();
 // SignalR service
 builder.Services.AddSignalR();
 // Add CORS policy
 builder.Services.AddCors();
 // 注册 BenchmarkService
-builder.Services.AddScoped<BenchmarkService>();
+builder.Services.AddScoped<OperationSQL>();
 // JWT Authentication configuration
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -46,7 +47,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // Configure database connection
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Services.AddDbContext<BenchmarkDbContext>(options =>
+builder.Services.AddDbContext<BenchmarkContent>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 // Using Autofac as a Dependency Injection Container
 builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
@@ -65,7 +66,7 @@ builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
     containerBuilder.RegisterType<ResourceDeletionService>().As<IResourceDeletionService>().SingleInstance();
     containerBuilder.RegisterType<MedianService>().As<IMedianService>().SingleInstance();
     containerBuilder.RegisterType<CreationService>().As<ICreationService>().SingleInstance();
-    containerBuilder.RegisterType<ConnectionVMService>().As<IConnectionVMService>().SingleInstance();
+    //containerBuilder.RegisterType<ConnectionVMService>().As<IConnectionVMService>().SingleInstance();
     containerBuilder.RegisterType<InsertBenchmarkService>().As<InsertBenchmarkService>().InstancePerDependency();
 });
 
