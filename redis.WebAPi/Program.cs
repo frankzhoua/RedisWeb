@@ -20,13 +20,12 @@ builder.Services.AddScoped<AuthFilter>();
 builder.Services.AddControllers();
 // Swagger/OpenAPI configuration
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddHostedService<BenchmarkQueueProcessor>();
 builder.Services.AddSwaggerGen();
 // SignalR service
 builder.Services.AddSignalR();
+builder.Services.AddScoped<ConnectionVMService>();
 // Add CORS policy
 builder.Services.AddCors();
-// 注册 BenchmarkService
 builder.Services.AddScoped<OperationSQL>();
 // JWT Authentication configuration
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -59,6 +58,8 @@ builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
     containerBuilder.RegisterType<TimerService>().InstancePerLifetimeScope();
 
     // Register other services
+    //containerBuilder.RegisterType<BenchmarkQueueProcessor>().As<IHostedService>().InstancePerLifetimeScope();
+    containerBuilder.RegisterType<ConnectionVMService>().InstancePerDependency();
     containerBuilder.RegisterType<AzureClientFactory>().SingleInstance();
     containerBuilder.RegisterType<SubscriptionResourceService>().As<ISubscriptionResourceService>().SingleInstance();
     containerBuilder.RegisterType<RedisCollectionService>().As<IRedisCollection>().SingleInstance();

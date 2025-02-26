@@ -1,4 +1,6 @@
-﻿using redis.WebAPi.Model;
+﻿using AutoMapper;
+using redis.WebAPi.Model;
+using redis.WebAPi.Model.BenchmarkModel;
 using redis.WebAPi.Repository.AppDbContext;
 using System.Text.RegularExpressions;
 
@@ -7,11 +9,13 @@ namespace redis.WebAPi.Service.Benchmark
     // Rename class to match constructor and class name
     public class InsertBenchmarkService 
     {
-        private readonly BenchmarkContent _context;
+        private readonly IServiceProvider _serviceProvider;
+        private readonly ILogger<InsertBenchmarkService> _logger;
 
-        public InsertBenchmarkService(BenchmarkContent context)
+        public InsertBenchmarkService(IServiceProvider serviceProvider, ILogger<InsertBenchmarkService> logger)
         {
-            _context = context;
+            _serviceProvider = serviceProvider;
+            _logger = logger;   
         }
 
         // Insert the run result into the database
@@ -19,33 +23,54 @@ namespace redis.WebAPi.Service.Benchmark
         {
             try
             {
-                // Extract all Entry blocks
                 var entries = ExtractEntries(output);
+                var resultDataList = new List<BenchmarkResultData>();
+                var finalDataList = new List<BenchmarkFinalDataModel>();
 
-                // Iterate through each Entry, generate a BenchmarkRequestData object and insert it into the database
-                foreach (var entry in entries)
+                // 使用CreateScope()手动管理DbContext
+                using (var scope = _serviceProvider.CreateScope())
                 {
-                    var BenchmarkData1 = new BenchmarkResultData
+                    var dbContext = scope.ServiceProvider.GetRequiredService<BenchmarkContent>();
+
+                    foreach (var entry in entries)
                     {
-                        CacheName = cacheName,
-                        TotalDuration = entry.TotalDuration,
-                        TimeUnit = entry.TimeUnit,
-                        GetsRPS = entry.GetsRPS,
-                        GetsAverageLatency = entry.GetsAverageLatency,
-                        GetsP50 = entry.GetsP50,
-                        GetsP99 = entry.GetsP99,
-                        GetsP99_90 = entry.GetsP99_90,
-                        GetsP99_99 = entry.GetsP99_99,
-                        TimeStamp = timeStamp
-                    };
-                    await _context.BenchmarkResultData.AddAsync(BenchmarkData1);
+                        var benchmarkData = new BenchmarkResultData
+                        {
+                            CacheName = cacheName,
+                            TotalDuration = entry.TotalDuration,
+                            TimeUnit = entry.TimeUnit,
+                            GetsRPS = entry.GetsRPS,
+                            GetsAverageLatency = entry.GetsAverageLatency,
+                            GetsP50 = entry.GetsP50,
+                            GetsP99 = entry.GetsP99,
+                            GetsP99_90 = entry.GetsP99_90,
+                            GetsP99_99 = entry.GetsP99_99,
+                            TimeStamp = timeStamp
+                        };
+
+                        resultDataList.Add(benchmarkData);
+
+                        var finalData = new BenchmarkFinalDataModel(benchmarkData);
+                        finalData.CacheName = cacheName + "Final";
+                        finalDataList.Add(finalData);
+                    }
+
+                    // **批量插入**
+                    if (resultDataList.Any())
+                    {
+                        await dbContext.BenchmarkResultData.AddRangeAsync(resultDataList);
+                        //await dbContext.BenchmarkFinalData.AddRangeAsync(finalDataList);
+                    }
+
+                    // **统一提交，提高效率**
+                    await dbContext.SaveChangesAsync();
                 }
-                await _context.SaveChangesAsync();
-                Console.WriteLine("Benchmark data inserted successfully.");
-            }
+
+                _logger.LogInformation("Benchmark data inserted successfully.");
+            }            
             catch (Exception ex)
             {
-                Console.WriteLine($"Error inserting benchmark data: {ex.Message}");
+                _logger.LogInformation($"Error inserting benchmark data: {ex.Message}");
             }
         }
 

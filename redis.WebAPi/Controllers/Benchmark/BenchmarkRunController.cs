@@ -5,6 +5,10 @@ using redis.WebAPi.Service.IService;
 using redis.WebAPi.Service;
 using Microsoft.EntityFrameworkCore;
 using redis.WebAPi.Service.Benchmark;
+using redis.WebAPi.Model.BenchmarkModel;
+using redis.WebAPi.Service.AzureShared;
+using System.Threading;
+using Polly;
 
 namespace Benchmark_API.Controllers
 {
@@ -14,12 +18,29 @@ namespace Benchmark_API.Controllers
     {
         private readonly BenchmarkContent _dbContext;  
         private readonly OperationSQL _benchmarkService;
+        private readonly ConnectionVMService _connectionVMService;
 
         // Inject BenchmarkDbContext and ConnectionVMService through the constructor
-        public BenchmarkRunController(BenchmarkContent dbContext, OperationSQL benchmarkService)
+        public BenchmarkRunController(BenchmarkContent dbContext, OperationSQL benchmarkService, ConnectionVMService connectionVMService)
         {
             _dbContext = dbContext;
             _benchmarkService = benchmarkService;
+            _connectionVMService = connectionVMService; 
+        }
+
+        [HttpPost("execute-tasks")]
+        public async Task<IActionResult> ExecutePendingTasks()
+        {
+            try
+            {
+                await _connectionVMService.ExecuteTasksOnVMs();
+                string result = "OK";
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error executing tasks: {ex.Message}");
+            }
         }
 
         // Receive the front-end parameters, then put them into the database and invoke the VM operation
@@ -31,6 +52,7 @@ namespace Benchmark_API.Controllers
                 var benchmarkTask = new BenchmarkRequestModel
                 {
                     Name = benchmarkRequest.Name,
+                    Region = benchmarkRequest.Region,
                     Clients = benchmarkRequest.Clients,
                     Threads = benchmarkRequest.Threads,
                     Size = benchmarkRequest.Size,
@@ -40,8 +62,9 @@ namespace Benchmark_API.Controllers
                     TimeStamp = DateTime.Now,
                     Status = 2  
                 };
+                var benchmarkQueue = new BenchmarkQueueDataModel(benchmarkTask);
 
-                _dbContext.BenchmarkQueue.Add(benchmarkTask);
+                _dbContext.BenchmarkQueue.Add(benchmarkQueue);
                 _dbContext.BenchmarkRequest.Add(benchmarkTask);
                 await _dbContext.SaveChangesAsync();
 

@@ -49,7 +49,7 @@ namespace redis.WebAPi.Controllers
 
                 for (var i = 0; i < resourceGroupResource.Count; i++)
                 {
-                    resourceGroupResource[i].DeleteAsync(WaitUntil.Started);
+                    await resourceGroupResource[i].DeleteAsync(WaitUntil.Started);
                 }
 
                 return Ok("Delete" + resourceGroupName + "Successfully");
