@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using redis.WebAPi.Model;
+using redis.WebAPi.Model.BenchmarkModel;
 
 namespace redis.WebAPi.Repository.AppDbContext{
     public class BenchmarkContent : DbContext
@@ -13,11 +14,24 @@ namespace redis.WebAPi.Repository.AppDbContext{
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<BenchmarkRequestModel>()
-                 .HasKey(p => p.Id); 
+                .ToTable("BenchmarkRequest", schema: "dbo")
+                .HasKey(p => p.Id);
+
+
+            // BenchmarkResultData ӳ�䵽 BenchmarkResultData
+            modelBuilder.Entity<BenchmarkResultData>()
+                .ToTable("BenchmarkResultData", schema: "dbo");
+
+            modelBuilder.Entity<BenchmarkFinalDataModel>()
+                .ToTable("BenchmarkFinalData", schema: "dbo");
+
+            modelBuilder.Entity<BenchmarkQueueDataModel>()
+               .ToTable("BenchmarkQueue", schema: "dbo");
+
         }
         public DbSet<BenchmarkResultData> BenchmarkResultData { get; set; }
-        public DbSet<BenchmarkResultData> BenchmarkFinalData { get; set; }
+        public DbSet<BenchmarkFinalDataModel> BenchmarkFinalData { get; set; }
         public DbSet<BenchmarkRequestModel> BenchmarkRequest { get; set; }
-        public DbSet<BenchmarkRequestModel> BenchmarkQueue { get; set; }
+        public DbSet<BenchmarkQueueDataModel> BenchmarkQueue { get; set; }
     }
 }

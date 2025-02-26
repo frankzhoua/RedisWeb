@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace redis.WebAPi.Model
 {
+
     public class BenchmarkRequestModel
     {
         public int Id { get; set; }
@@ -14,7 +16,7 @@ namespace redis.WebAPi.Model
 
         [Required(ErrorMessage = "Region is required.")]
         public string Region { get; set; }
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         [Required(ErrorMessage = "Clients is required.")]
         public int Clients { get; set; }
@@ -33,8 +35,8 @@ namespace redis.WebAPi.Model
         [Required(ErrorMessage = "Times is required.")]
         public int Times { get; set; }
 
-        [Required(ErrorMessage = "Status is required.")]
         public int Status { get; set; } // 1 is running, 2 is pending, 3 is successful, 4 is failed
+        
         public DateTime TimeStamp { get; set; }
     }
 }

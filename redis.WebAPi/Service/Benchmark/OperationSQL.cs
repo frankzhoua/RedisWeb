@@ -55,7 +55,7 @@ namespace redis.WebAPi.Service
             }
         }
 
-       public async Task<bool> DeletData(string cachekName, SQLDataBaseEnum s, int newStatus)
+       public async Task<bool> DeletData(string cachekName, SQLDataBaseEnum s)
         {
             try
             {
