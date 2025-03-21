@@ -75,32 +75,6 @@ namespace Benchmark_API.Controllers
             }
         }
 
-        [HttpPost("disposiable run")]
-        public async Task<IActionResult> runOneQueue()
-        {
-            try
-            {
-                var vm = await _connectionVMService.GetVirtualMachineAsync("MemtierBenchmarkTest");
-                var request = new BenchmarkQueueDataModel() 
-                {
-                    Name= "benchmarktest",
-                    pw = "4rqcibERjQdcEtaqbk7ytwue1nhjApY54AzCaI4S0Y0=",
-                    Clients = 4 ,
-                    Threads = 16,
-                    Size = 1024,
-                    Requests = 10000 ,
-                    Pipeline = 20 ,
-                    Times = 5                
-                };
-                var result = await _connectionVMService.RunBenchmarkOnVM(vm,request);
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Error executing tasks: {ex.Message}");
-            }
-        }
 
         // Receive the front-end parameters, then put them into the database and invoke the VM operation
         [HttpPost("enqueue")]
