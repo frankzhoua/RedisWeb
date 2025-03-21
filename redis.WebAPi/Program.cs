@@ -26,7 +26,6 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<ConnectionVMService>();
 // Add CORS policy
 builder.Services.AddCors();
-builder.Services.AddScoped<OperationSQL>();
 // JWT Authentication configuration
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -68,7 +67,6 @@ builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
     containerBuilder.RegisterType<MedianService>().As<IMedianService>().SingleInstance();
     containerBuilder.RegisterType<CreationService>().As<ICreationService>().SingleInstance();
     //containerBuilder.RegisterType<ConnectionVMService>().As<IConnectionVMService>().SingleInstance();
-    containerBuilder.RegisterType<InsertBenchmarkService>().As<InsertBenchmarkService>().InstancePerDependency();
 });
 
 var app = builder.Build();

@@ -12,6 +12,11 @@ using Microsoft.AspNetCore.Mvc;
 using redis.WebAPi.Model.BenchmarkModel;
 using Polly;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using System.Text.RegularExpressions;
+using static OfficeOpenXml.ExcelErrorValue;
+using redis.WebAPi.Models;
 
 
 
@@ -20,21 +25,17 @@ namespace redis.WebAPi.Service.AzureShared
     public class ConnectionVMService 
     {
         private readonly AzureClientFactory _client;
-        private readonly InsertBenchmarkService _insertBenchmarkService;
         //private readonly BenchmarkContent _dbContext;
         private readonly ILogger<ConnectionVMService> _logger;
         private readonly IServiceProvider _serviceProvider;
-        private readonly OperationSQL _sqlOperation;
 
 
-        public ConnectionVMService(AzureClientFactory client, InsertBenchmarkService insertBenchmarkService, ILogger<ConnectionVMService> logger, IServiceProvider serviceProvider, OperationSQL sqlOperation, BenchmarkContent dbContext)
+        public ConnectionVMService(AzureClientFactory client, ILogger<ConnectionVMService> logger, IServiceProvider serviceProvider, BenchmarkContent dbContext)
         {
             //_dbContext = dbContext;
             _client = client;
-            _insertBenchmarkService = insertBenchmarkService;
             _logger = logger;
             _serviceProvider = serviceProvider;
-            _sqlOperation = sqlOperation;
         }
 
         private async Task<Dictionary<String,List<BenchmarkQueueDataModel>>> DistributeTasksIntoLists(
@@ -53,14 +54,7 @@ namespace redis.WebAPi.Service.AzureShared
                 foreach (var task in tasks)
                 {
 
-                    var vmResource = await GetVMByCacheName(task.Name);
-                    if (vmResource == null)
-                    {
-                        
-                        continue;
-                    }
-
-                    string vmName = vmResource.Data.Name; 
+                    string vmName = AllocateVMByCacheName(task.Name); 
 
                     // create a new key if there is no vmName kay
                     if (!vmTaskLists.ContainsKey(vmName))
@@ -79,7 +73,7 @@ namespace redis.WebAPi.Service.AzureShared
             Dictionary<string, List<BenchmarkQueueDataModel>> vmTaskLists = new Dictionary<string, List<BenchmarkQueueDataModel>>();
             var dict = await DistributeTasksIntoLists(vmTaskLists);
 
-            _logger.LogInformation("当前DIC值: " + string.Join(", ", dict.Select(kv => $"{kv.Key}: [{string.Join(", ", kv.Value)}]")));
+            _logger.LogInformation("Dic: " + string.Join(", ", dict.Select(kv => $"{kv.Key}: [{string.Join(", ", kv.Value)}]")));
 
             // List<Task> storage VM tasks
             List<Task> vmTasks = new List<Task>();
@@ -106,14 +100,22 @@ namespace redis.WebAPi.Service.AzureShared
                                 dbContext.BenchmarkQueue.Update(task);
                                 await dbContext.SaveChangesAsync();
 
-                                string output = await RunTasksForVM(vmName, task);
+                                string output = await RunTasksForVM(task);
                                 results.Add($"[{vmName}] {output}");
                                 _logger.LogInformation($"任务：{task.Name} 结束");
                             }
                         }
                         catch (Exception ex)
                         {
+                            task.Status = 4;
+                            using (var scope = _serviceProvider.CreateScope())
+                            {
+                                var dbContext = scope.ServiceProvider.GetRequiredService<BenchmarkContent>();
+                                dbContext.BenchmarkQueue.Update(task);
+                                await dbContext.SaveChangesAsync();
+                            }
                             _logger.LogError($"执行 {task.Name} 时发生错误: {ex.Message}");
+                            continue;
                         }
                     }
                 });
@@ -124,7 +126,7 @@ namespace redis.WebAPi.Service.AzureShared
             await Task.WhenAll(vmTasks); 
         }
 
-        private async Task<string> RunTasksForVM(string vmName, BenchmarkQueueDataModel task)
+        private async Task<string> RunTasksForVM(BenchmarkQueueDataModel task)
         {
             try
             {
@@ -166,97 +168,74 @@ namespace redis.WebAPi.Service.AzureShared
 
             string cacheName = request.Name;
 
-            _logger.LogInformation("\n 运行到SamulateBenchmarkByCacheName了！！！！！！！！！！！");
-            var output = await SamulateBenchmarkByCacheName(cacheName,dbContext);
+            var vm = GetVMByCacheName(cacheName).Result;
+            var output = await RunBenchmarkOnVM(vm, request);
             return output;
 
 
 
         }
 
-        public async Task<String> SamulateBenchmarkByCacheName(string cacheName,BenchmarkContent _dbContext)
+
+        public async Task FinalDataCollection(DateTime targetDate)
         {
 
-            await Task.Delay(TimeSpan.FromSeconds(10));
-            var timeStamp = DateTime.Now;
-            string fileName = $"output-{timeStamp}";
-
-            var output = $"Entry 1:\r\nTotal duration: 222440\r\nTime unit: MILLISECONDS\r\nGets RPS: 151074.41\r\nGets average latency: 4.539\r\nGets p50.00: 3.823\r\nGets p99.00: 10.431\r\nGets p99.90: 14.719\r\nGets p99.99: 25.855\r\nEntry 2:\r\nTotal duration: 379985\r\nTime unit: MILLISECONDS\r\nGets RPS: 153115.65\r\nGets average latency: 7.531\r\nGets p50.00: 7.071\r\nGets p99.00: 14.015\r\nGets p99.90: 18.175\r\nGets p99.99: 28.159\r\nEntry 3:\r\nTotal duration: 365442\r\nTime unit: MILLISECONDS\r\nGets RPS: 159209.27\r\nGets average latency: 7.345\r\nGets p50.00: 7.071\r\nGets p99.00: 11.007\r\nGets p99.90: 14.655\r\nGets p99.99: 21.119\r\nEntry 4:\r\nTotal duration: 364630\r\nTime unit: MILLISECONDS\r\nGets RPS: 159563.51\r\nGets average latency: 7.313\r\nGets p50.00: 7.071\r\nGets p99.00: 9.855\r\nGets p99.90: 13.055\r\nGets p99.99: 17.663\r\nEntry 5:\r\nTotal duration: 360140\r\nTime unit: MILLISECONDS\r\nGets RPS: 161553.18\r\nGets average latency: 7.095\r\nGets p50.00: 7.071\r\nGets p99.00: 10.879\r\nGets p99.90: 14.015\r\nGets p99.99: 19.327\r\nEntry 6:\r\nTotal duration: 356755\r\nTime unit: MILLISECONDS\r\nGets RPS: 163085.93\r\nGets average latency: 6.928\r\nGets p50.00: 6.975\r\nGets p99.00: 11.199\r\nGets p99.90: 13.951\r\nGets p99.99: 18.303\r\nEntry 7:\r\nTotal duration: 350010\r\nTime unit: MILLISECONDS\r\nGets RPS: 166228.88\r\nGets average latency: 7.169\r\nGets p50.00: 7.071\r\nGets p99.00: 10.303\r\nGets p99.90: 13.951\r\nGets p99.99: 19.583\r\nEntry 8:\r\nTotal duration: 339696\r\nTime unit: MILLISECONDS\r\nGets RPS: 171275.73\r\nGets average latency: 6.863\r\nGets p50.00: 7.007\r\nGets p99.00: 11.135\r\nGets p99.90: 14.399\r\nGets p99.99: 19.711\r\nEntry 9:\r\nTotal duration: 334390\r\nTime unit: MILLISECONDS\r\nGets RPS: 173993.89\r\nGets average latency: 6.847\r\nGets p50.00: 5.695\r\nGets p99.00: 11.391\r\nGets p99.90: 14.847\r\nGets p99.99: 19.583\r\nEntry 10:\r\nTotal duration: 316090\r\nTime unit: MILLISECONDS\r\nGets RPS: 184067.21\r\nGets average latency: 6.82\r\nGets p50.00: 6.047\r\nGets p99.00: 11.135\r\nGets p99.90: 13.951\r\nGets p99.99: 20.223";
-
-            if (!string.IsNullOrEmpty(output))
+            using (var scope = _serviceProvider.CreateScope()) 
             {
-                string newcacheName = cacheName+ Thread.CurrentThread.ToString();
-                _logger.LogInformation("\n 运行到InsertBenchmarkResultData了！！！！！！！！！！！,线程： "+Thread.CurrentThread.ManagedThreadId.ToString());
-                await _insertBenchmarkService.InsertBenchmarkResultData(output, newcacheName, timeStamp);
-                var removedData = await _dbContext.BenchmarkQueue.FirstOrDefaultAsync(u => u.Name == cacheName);
-                if (removedData != null)
-                {
-                    _logger.LogInformation("\n 运行到Remove了！！！！！！！！！！！线程： "+Thread.CurrentThread.ManagedThreadId.ToString());
-                    _dbContext.BenchmarkQueue.Remove(removedData);
-                    await _dbContext.SaveChangesAsync();
-                }
+                var dbContext = scope.ServiceProvider.GetRequiredService<BenchmarkContent>();
+                var allData = dbContext.BenchmarkResultData.AsNoTracking()
+                    .Where(d => d.TimeStamp.Date == targetDate.Date)
+                    .ToList();
 
+                if (!allData.Any()) return; 
+
+                // 计算各个 SKU 的中位数
+                var medianResults = allData
+                    .Where(data => !string.IsNullOrEmpty(data.CacheName))
+                    .GroupBy(data => ExtractSku(data.CacheName))
+                    .Select(group => new BenchmarkFinalDataModel
+                    {
+                        CacheName = group.Key,
+                        TotalDuration = CalculateMedian(group.Select(d => d.TotalDuration).ToList()),
+                        TimeUnit = "MILLISECONDS",
+                        GetsRPS = CalculateMedian(group.Select(d => d.GetsRPS).ToList()),
+                        GetsAverageLatency = CalculateMedian(group.Select(d => d.GetsAverageLatency).ToList()),
+                        GetsP50 = CalculateMedian(group.Select(d => d.GetsP50).ToList()),
+                        GetsP99 = CalculateMedian(group.Select(d => d.GetsP99).ToList()),
+                        GetsP99_90 = CalculateMedian(group.Select(d => d.GetsP99_90).ToList()),
+                        GetsP99_99 = CalculateMedian(group.Select(d => d.GetsP99_99).ToList()),
+                        TimeStamp = DateTime.Now
+                    })
+                    .ToList();
+                dbContext.BenchmarkFinalData.AddRange(medianResults);
+                dbContext.SaveChanges();
             }
-
-            return output;
         }
 
-
-
-        //public async Task<string> ConnectionVM()
-        //{
-        //    try
-        //    {
-        //        var benchmarkTask = await _dbContext.BenchmarkQueue
-        //            .Where(b => b.Status == 2)  // 只处理待处理任务
-        //            .OrderBy(b => b.TimeStamp)  // 按照时间戳排序，先处理早期任务
-        //            .FirstOrDefaultAsync();
-
-        //        if (benchmarkTask == null)
-        //        {
-        //            return "No pending benchmark tasks found.";
-        //        }
-
-        //        string cacheName = benchmarkTask.Name;
-        //        string primary = benchmarkTask.pw;
-        //        int clients = benchmarkTask.Clients;
-        //        int threads = benchmarkTask.Threads;
-        //        int size = benchmarkTask.Size;
-        //        int requests = benchmarkTask.Requests;
-        //        int pipeline = benchmarkTask.Pipeline;
-        //        int times = benchmarkTask.Times;
-
-        //        var vm = await GetVMByCacheName(cacheName);
-        //        if (!await IsVMAvailableForTask(vm))
-        //        {
-        //            throw new InvalidOperationException("VM is busy with another task.");
-        //        }
-
-        //        // 运行基准测试
-        //        string output = await RunBenchmarkOnVM(vm, cacheName, primary, clients, threads, size, requests, pipeline, times);
-
-        //        return output;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine($"An error occurred: {ex.Message}");
-        //        throw;
-        //    }
-        //}
-
-        // Check whether the VM is idle to ensure that the task execution status is more accurately determined
-        private async Task<bool> IsVMAvailableForTask(VirtualMachineResource vm)
+        private string ExtractSku(string cacheName)
         {
-            var instanceView = await vm.InstanceViewAsync();
-            var statuses = instanceView.Value.Statuses;
-        
-            bool isRunningAnotherTask = statuses.Any(status => status.Code == "PowerState/running" && status.DisplayStatus.Contains("Running"));
-  
-            return !isRunningAnotherTask;
+            var parts = cacheName.Split('-'); 
+            return parts.Length > 1 ? parts[1] : "Unknown"; 
+        }
+
+        private double CalculateMedian(List<double> values)
+        {
+            if (values == null || values.Count == 0)
+                return 0;
+
+            values.Sort(); 
+
+            int count = values.Count;
+            int mid = count / 2;
+
+            if (count % 2 == 0) 
+                return (values[mid - 1] + values[mid]) / 2.0;
+            else 
+                return values[mid];
         }
 
 
-        private async Task<string> RunBenchmarkOnVM(VirtualMachineResource vm, string name, string pw, int clients, int threads, int size, int requests, int pipeline, int times)
+        public async Task<string> RunBenchmarkOnVM(VirtualMachineResource vm, BenchmarkQueueDataModel request)
         {
             var timeStamp = DateTime.Now;
             string fileName = $"output-{timeStamp}";
@@ -265,44 +244,61 @@ namespace redis.WebAPi.Service.AzureShared
             {
                 Script =
             {
-                "cd /home/azureuser",
-                $"./manage_screen_session.sh {name} {pw} {threads} {clients} {requests} {pipeline} {size} {times} {fileName}",
+                $"memtier_benchmark -h {request.Name+".redis.cache.windows.net"} -a {request.pw} --threads {request.Threads} --clients {request.Clients} -n {request.Requests} --ratio=1:10 --pipeline {request.Pipeline} -d {request.Size} --random-data --key-pattern=S:S --key-minimum=1 --key-maximum=10000 -x 1 --print-percentiles 50,99,99.9,99.99 --json-out-file /home/azureuser/out.json",
+               
             }
+
             };
 
-            var response = (await vm.RunCommandAsync(WaitUntil.Completed, runCommandInput)).Value;
-            var output = string.Join("\n", response.Value.Select(r => r.Message));
-
-            if (!string.IsNullOrEmpty(output))
+            await vm.RunCommandAsync(WaitUntil.Completed, runCommandInput);
+            var runCommandInput2 = new RunCommandInput("RunShellScript")
             {
-                await _insertBenchmarkService.InsertBenchmarkResultData(output, name, timeStamp);
-                using (var scope = _serviceProvider.CreateScope())
+                Script = { "jq '{\r\n    \"Total duration\": .[\"ALL STATS\"].Runtime[\"Total duration\"],\r\n    \"Time unit\": .[\"ALL STATS\"].Runtime[\"Time unit\"],\r\n    \"Gets RPS\": .[\"ALL STATS\"].Gets[\"Ops/sec\"],\r\n    \"Gets average latency\": .[\"ALL STATS\"].Gets[\"Average Latency\"],\r\n    \"Gets p50.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p50.00\"],\r\n    \"Gets p99.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.00\"],\r\n    \"Gets p99.90\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.90\"],\r\n    \"Gets p99.99\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.99\"]\r\n}' /home/azureuser/out.json" }
+
+            };
+            var output = (await vm.RunCommandAsync(WaitUntil.Completed, runCommandInput2)).Value.Value.Select(r=>r.Message).First();
+            
+            //var output = string.Join("\n", response.Value.Select(r => r.Message));
+            int startIndex = output.IndexOf("{");
+            int endIndex = output.LastIndexOf("}");
+            
+            string jsonPart = output.Substring(startIndex-1, endIndex - startIndex + 2); 
+            
+            var savedData = JsonConvert.DeserializeObject<BenchmarkResultData>(jsonPart);
+            savedData.CacheName = request.Name;
+            savedData.TimeStamp = DateTime.Now;
+
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<BenchmarkContent>();
+                var removedData = await dbContext.BenchmarkQueue.FirstOrDefaultAsync(u => u.Name == request.Name);
+                if (removedData != null )
                 {
-                    var dbContext = scope.ServiceProvider.GetRequiredService<BenchmarkContent>();
-                    var removedData = await dbContext.BenchmarkQueue.FirstOrDefaultAsync(u => u.Name == name);
-                    if (removedData != null)
-                    {
-                        dbContext.BenchmarkQueue.Remove(removedData);
-                        await dbContext.SaveChangesAsync();
-                    }
+                    dbContext.BenchmarkQueue.Remove(removedData);
+                    await dbContext.SaveChangesAsync();
                 }
-                    
-
+                dbContext.BenchmarkResultData.Add(savedData);
+                await dbContext.SaveChangesAsync();
             }
-
+            output = JsonConvert.SerializeObject(savedData);
             return output;
         }
+
 
 
 
         public async Task<VirtualMachineResource> GetVirtualMachineAsync(string vmName)
         {
             var armClient = _client.ArmClient;
-            var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "fc2f20f5-602a-4ebd-97e6-4fae3f1f6424"));
-            var vmResource = (await subResource.GetResourceGroupAsync("MemtierbenchmarkTest")).Value.GetVirtualMachines().GetAsync(vmName).Result;
+            var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "1e57c478-0901-4c02-8d35-49db234b78d2"));
+            //var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "fc2f20f5-602a-4ebd-97e6-4fae3f1f6424
+            var vmResource = (await subResource.GetResourceGroupAsync("Redis_MemtierbenchmarkTest")).Value.GetVirtualMachines().GetAsync(vmName).Result;
+          
 
             return vmResource;
         }
+
+
 
         public async Task<VirtualMachineResource> GetVMByCacheName(string cacheName)
         {
