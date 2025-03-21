@@ -82,29 +82,33 @@ namespace Benchmark_API.Controllers
         {
             try
             {
-                for (int i=1; i<=benchmarkRequest.Times;i++) 
+                using (var scope = _serviceProvider.CreateScope())
                 {
-                    var benchmarkTask = new BenchmarkRequestModel
+                    var dbContext = scope.ServiceProvider.GetService<BenchmarkContent>();
+                    for (int i = 1; i <= benchmarkRequest.Times; i++)
                     {
-                        Name = benchmarkRequest.Name + i,
-                        Region = benchmarkRequest.Region,
-                        Clients = benchmarkRequest.Clients,
-                        Threads = benchmarkRequest.Threads,
-                        Size = benchmarkRequest.Size,
-                        Requests = benchmarkRequest.Requests,
-                        Pipeline = benchmarkRequest.Pipeline,
-                        Times = benchmarkRequest.Times,
-                        TimeStamp = DateTime.Now,
-                        Status = 2
-                    };
-                    var benchmarkQueue = new BenchmarkQueueDataModel(benchmarkTask);
+                        var benchmarkTask = new BenchmarkRequestModel
+                        {
+                            Name = benchmarkRequest.Name + i,
+                            Region = benchmarkRequest.Region,
+                            Clients = benchmarkRequest.Clients,
+                            Threads = benchmarkRequest.Threads,
+                            Size = benchmarkRequest.Size,
+                            Requests = benchmarkRequest.Requests,
+                            Pipeline = benchmarkRequest.Pipeline,
+                            Times = benchmarkRequest.Times,
+                            TimeStamp = DateTime.Now,
+                            Status = 2
+                        };
+                        var benchmarkQueue = new BenchmarkQueueDataModel(benchmarkTask);
 
-                    _dbContext.BenchmarkQueue.Add(benchmarkQueue);
-                    _dbContext.BenchmarkRequest.Add(benchmarkTask);
+                        dbContext.BenchmarkQueue.Add(benchmarkQueue);
+                        dbContext.BenchmarkRequest.Add(benchmarkTask);
 
+                    }
+                    await dbContext.SaveChangesAsync();
                 }
-                await _dbContext.SaveChangesAsync();
-
+                
                 return Ok("Task has been enqueued.");
             }
             catch (Exception ex)
