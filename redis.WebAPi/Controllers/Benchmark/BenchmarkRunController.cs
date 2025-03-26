@@ -90,6 +90,7 @@ namespace Benchmark_API.Controllers
                         var benchmarkTask = new BenchmarkRequestModel
                         {
                             Name = benchmarkRequest.Name + i,
+                            pw = benchmarkRequest.pw,
                             Region = benchmarkRequest.Region,
                             Clients = benchmarkRequest.Clients,
                             Threads = benchmarkRequest.Threads,
@@ -98,6 +99,7 @@ namespace Benchmark_API.Controllers
                             Pipeline = benchmarkRequest.Pipeline,
                             Times = benchmarkRequest.Times,
                             TimeStamp = DateTime.Now,
+                            Description = benchmarkRequest.Description,
                             Status = 2
                         };
                         var benchmarkQueue = new BenchmarkQueueDataModel(benchmarkTask);

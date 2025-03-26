@@ -60,9 +60,9 @@ const Statistics: React.FC = () => {
                 disabled: boolean
             }
         > = {
-            '1': { label: 'Successful', color: 'success', disabled: false },
+            '3': { label: 'Successful', color: 'success', disabled: false },
             '2': { label: 'In Progress', color: 'inherit', disabled: true },
-            '3': { label: 'Running', color: 'inherit', disabled: true },
+            '1': { label: 'Running', color: 'inherit', disabled: true },
             '4': { label: 'Error', color: 'error', disabled: true },
         }
 
