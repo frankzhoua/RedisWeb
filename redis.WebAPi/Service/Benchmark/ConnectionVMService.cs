@@ -17,6 +17,7 @@ using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using static OfficeOpenXml.ExcelErrorValue;
 using redis.WebAPi.Models;
+using System.Text.RegularExpressions;
 
 
 
@@ -38,9 +39,15 @@ namespace redis.WebAPi.Service.AzureShared
             _serviceProvider = serviceProvider;
         }
 
+
         private async Task<Dictionary<String,List<BenchmarkQueueDataModel>>> DistributeTasksIntoLists(
             Dictionary<string, List<BenchmarkQueueDataModel>> vmTaskLists)
         {
+            /*
+                This method obtains the task in the BenchmarkQueue table with state 2 (pending) from the database and assigns it to a different virtual machine (VM) based on the task name.
+                AllocateVMByCacheName Used to assign a VM name based on the task name.
+                Add each task to the vmTaskLists dictionary according to the assigned virtual machine name.
+             */
             using (var scope = _serviceProvider.CreateScope())
             {
                 _logger.LogInformation("\n 执行分配！！！！！！！");
@@ -70,6 +77,12 @@ namespace redis.WebAPi.Service.AzureShared
 
         public async Task  ExecuteTasksOnVMs()
         {
+            /*
+                This method gets the list of assigned tasks from DistributeTasksIntoLists.
+                Create an asynchronous task for each virtual machine task and perform the corresponding benchmark.
+                In each task, update the task status to 1 (executing) and call RunTasksForVM to perform the specific action.
+                Exception handling: If the task fails to be executed, set the task status to 4 (failed) and record an error message.
+             */
             Dictionary<string, List<BenchmarkQueueDataModel>> vmTaskLists = new Dictionary<string, List<BenchmarkQueueDataModel>>();
             var dict = await DistributeTasksIntoLists(vmTaskLists);
 
@@ -102,6 +115,7 @@ namespace redis.WebAPi.Service.AzureShared
 
                                 string output = await RunTasksForVM(task);
                                 results.Add($"[{vmName}] {output}");
+
                                 _logger.LogInformation($"任务：{task.Name} 结束");
                             }
                         }
@@ -128,12 +142,19 @@ namespace redis.WebAPi.Service.AzureShared
 
         private async Task<string> RunTasksForVM(BenchmarkQueueDataModel task)
         {
+            /*
+                This method handles the execution of each task. First try running the ConnectionVMTest method to get the benchmark results.
+                If an exception occurs, the task status is updated to 4 (failed) and an error message is returned.
+             */
             try
             {
                 using (var scope = _serviceProvider.CreateScope()) 
                 {
                     var dbContext = scope.ServiceProvider.GetRequiredService<BenchmarkContent>();
                     string output = await ConnectionVMTest(task, dbContext);
+                    task.Status = 3;
+                    dbContext.BenchmarkRequest.Update(task.ToBenchmarkRequestModel());
+                    await dbContext.SaveChangesAsync(); // 保存更改
                     return output;
                 }
                     
@@ -153,10 +174,8 @@ namespace redis.WebAPi.Service.AzureShared
             }
 
         }
-     
 
-     
-
+        //Connect virtual machines and perform benchmarks (ConnectionVMTest and RunBenchmarkOnVM)
         public async Task<string> ConnectionVMTest(BenchmarkQueueDataModel request,BenchmarkContent dbContext) 
         {
 
@@ -167,7 +186,7 @@ namespace redis.WebAPi.Service.AzureShared
             }
 
             string cacheName = request.Name;
-
+            cacheName = Regex.Replace(cacheName, @"\d$", "");  
             var vm = GetVMByCacheName(cacheName).Result;
             var output = await RunBenchmarkOnVM(vm, request);
             return output;
@@ -239,12 +258,14 @@ namespace redis.WebAPi.Service.AzureShared
         {
             var timeStamp = DateTime.Now;
             string fileName = $"output-{timeStamp}";
+            string cacheName = request.Name;
+            cacheName = Regex.Replace(cacheName, @"\d$", "");
 
             var runCommandInput = new RunCommandInput("RunShellScript")
             {
                 Script =
             {
-                $"memtier_benchmark -h {request.Name+".redis.cache.windows.net"} -a {request.pw} --threads {request.Threads} --clients {request.Clients} -n {request.Requests} --ratio=1:10 --pipeline {request.Pipeline} -d {request.Size} --random-data --key-pattern=S:S --key-minimum=1 --key-maximum=10000 -x 1 --print-percentiles 50,99,99.9,99.99 --json-out-file /home/azureuser/out.json",
+                $"memtier_benchmark -h {cacheName} -a {request.pw} --threads {request.Threads} --clients {request.Clients} -n {request.Requests} --ratio=1:10 --pipeline {request.Pipeline} -d {request.Size} --random-data --key-pattern=S:S --key-minimum=1 --key-maximum=10000 -x 1 --print-percentiles 50,99,99.9,99.99 --json-out-file /home/azureuser/out.json",
                
             }
 
@@ -290,9 +311,9 @@ namespace redis.WebAPi.Service.AzureShared
         public async Task<VirtualMachineResource> GetVirtualMachineAsync(string vmName)
         {
             var armClient = _client.ArmClient;
-            var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "1e57c478-0901-4c02-8d35-49db234b78d2"));
-            //var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "fc2f20f5-602a-4ebd-97e6-4fae3f1f6424
-            var vmResource = (await subResource.GetResourceGroupAsync("Redis_MemtierbenchmarkTest")).Value.GetVirtualMachines().GetAsync(vmName).Result;
+            //var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "1e57c478-0901-4c02-8d35-49db234b78d2"));
+            var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "fc2f20f5-602a-4ebd-97e6-4fae3f1f6424"));
+            var vmResource = (await subResource.GetResourceGroupAsync("MemtierbenchmarkTest")).Value.GetVirtualMachines().GetAsync(vmName).Result;
           
 
             return vmResource;
