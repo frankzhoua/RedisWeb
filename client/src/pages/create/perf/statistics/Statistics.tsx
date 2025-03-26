@@ -34,7 +34,7 @@ const Statistics: React.FC = () => {
 
     const fetchData = async () => {
         try {
-            const response = await axios.get('https://localhost:7179/api/Parameters')
+            const response = await axios.get('https://localhost:7179/api/Data/GetBenchmarkRequestData')
             // const response = await agent.Create.getBenchmarkRunJson()
             console.log('Fetched data:', response)
             setParameters(response.data.reverse())

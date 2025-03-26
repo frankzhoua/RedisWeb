@@ -11,7 +11,7 @@ namespace redis.WebAPi.Model
         [Required(ErrorMessage = "Name is required.")]
         public string Name { get; set; }
 
-        [Required(ErrorMessage = "Name is required.")]
+        [Required(ErrorMessage = "pw is required.")]
         public string pw { get; set; }
 
         [Required(ErrorMessage = "Region is required.")]
