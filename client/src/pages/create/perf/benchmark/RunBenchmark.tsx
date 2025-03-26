@@ -52,7 +52,7 @@ const RunBenchmark = () => {
 
         const body = {
             name,
-            primary,
+            pw:primary,
             region,
             description,
             clients,
@@ -61,7 +61,7 @@ const RunBenchmark = () => {
             requests,
             pipeline,
             times,
-            timeStamp
+            // timeStamp
         }
     
         try {

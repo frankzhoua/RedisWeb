@@ -71,7 +71,7 @@ const Create = {
     sendManJson: (body: object) => request.post(`/Creation/CreateP0P1Cache`, body),
     sendPerfJson: (body: object) => request.post(`/Creation/CreatePerfCache`, body),
     sendAltJson: (body: object) => request.post(`/Creation/CreateAltCache`, body),
-    sendBenchmarkRunJson: (body: object) => request.post('/BenchmarkRun', body),
+    sendBenchmarkRunJson: (body: object) => request.post('/BenchmarkRun/enqueue', body),
     // getBenchmarkRunJson: () => request.get('/Parameters')
 }
 
