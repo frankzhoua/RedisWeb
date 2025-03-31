@@ -9,6 +9,8 @@ using redis.WebAPi.Model.BenchmarkModel;
 using redis.WebAPi.Service.AzureShared;
 using System.Threading;
 using Polly;
+using System.Text;
+using System.Text.Json;
 
 namespace Benchmark_API.Controllers
 {
@@ -18,6 +20,8 @@ namespace Benchmark_API.Controllers
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ConnectionVMService _connectionVMService;
+
+
 
         // Inject BenchmarkDbContext and ConnectionVMService through the constructor
         public BenchmarkRunController(ConnectionVMService connectionVMService, IServiceProvider serviceProvider  )
@@ -75,7 +79,6 @@ namespace Benchmark_API.Controllers
             }
         }
 
-
         // Receive the front-end parameters, then put them into the database and invoke the VM operation
         [HttpPost("enqueue")]
         public async Task<IActionResult> InvokeVMOperation([FromBody] BenchmarkRequestModel benchmarkRequest)
@@ -118,9 +121,62 @@ namespace Benchmark_API.Controllers
                 return StatusCode(500, new { message = "Error occurred during benchmark execution", error = ex.Message });
             }
         }
+        [HttpGet("GetBenchmarkData")]
+        public async Task<IActionResult> AddBenchmarkData([FromQuery] string date)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(date) || date.Length != 4)
+                {
+                    return BadRequest("Invalid date format. Expected format: MMDD (e.g., 0328)");
+                }
 
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var dbContext = scope.ServiceProvider.GetService<BenchmarkContent>();
 
+                    var results = await dbContext.BenchmarkFinalData
+                        .Where(b => b.CacheName.Contains(date))
+                        .ToListAsync();
+                    if (!results.Any())
+                    {
+                        return NotFound("No data found for the given date.");
+                    }
 
+                    var sb = new StringBuilder();
+                    foreach (var item in results)
+                    {
+                        sb.AppendLine($"Results from: {item.CacheName}");
+                        var jsonData = JsonSerializer.Serialize(new
+                        {
+                            TotalDuration = item.TotalDuration,
+                            TimeUnit = item.TimeUnit,
+                            GetsRPS = item.GetsRPS,
+                            GetsAverageLatency = item.GetsAverageLatency,
+                            GetsP50 = item.GetsP50,
+                            GetsP99 = item.GetsP99,
+                            GetsP99_90 = item.GetsP99_90,
+                            GetsP99_99 = item.GetsP99_99,
+                            TimeStamp = item.TimeStamp
+
+                        }, new JsonSerializerOptions { WriteIndented = true });
+                        sb.AppendLine(jsonData);
+                        sb.AppendLine();
+                    }
+
+                    var fileName = $"BenchmarkData_{date}.txt";
+                    var fileBytes = Encoding.UTF8.GetBytes(sb.ToString());
+                    return File(fileBytes, "text/plain", fileName);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error occurred during data insertion", error = ex.Message });
+            }
+        
 
     }
+
+
+        }
 }

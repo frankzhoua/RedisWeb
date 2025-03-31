@@ -13,6 +13,8 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
+import { useState } from 'react';
+import axios from 'axios';
 
 const vmList = [
     { name: 'P1P2', status: 'on' },
@@ -59,7 +61,40 @@ const tableData = [
     },
 ];
 
+
 const Routine = () => {
+    const [cacheDate, setCacheDate] = useState('');
+    // 处理输入框变化
+    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setCacheDate(event.target.value);
+    };
+     // 发送请求并下载 TXT 文件
+    const fetchAndDownloadTxt = async () => {
+        if (!cacheDate) {
+            alert("请输入 Cache Date!");
+            return;
+        }
+
+        try {
+            const response = await axios.get(
+                `https://localhost:7179/api/BenchmarkRun/GetBenchmarkData?date=${cacheDate}`,
+                { responseType: "blob" }
+            );
+
+            // 创建 Blob 并下载文件
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", `BenchmarkData_${cacheDate}.txt`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error("Error downloading the file:", error);
+            alert("Download failed, please check whether the server is running properly!");
+        }
+    };
+
     return (
         <React.Fragment>
             <Box textAlign="center">
@@ -132,6 +167,25 @@ const Routine = () => {
                     <TextField id="outlined-basic" label="Cache Date" variant="outlined" />
                 </Box>
                 <Button variant="contained" sx={{ mt: 2, borderRadius: '8px', background: '#1976d2', '&:hover': { background: '#1565c0' } }}>确定</Button>
+            </Box>
+                <Box component="form" sx={{ mt: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <Box display="flex" alignItems="center" gap={2}>
+                    <Typography variant="body1" sx={{ fontWeight: 'bold' }}>Select Cache：</Typography>
+                    <TextField
+                        id="Get_data"
+                        label="Cache Date"
+                        variant="outlined"
+                        value={cacheDate}
+                        onChange={handleInputChange}
+                    />
+                </Box>
+                <Button
+                    variant="contained"
+                    sx={{ mt: 2, borderRadius: '8px', background: '#1976d2', '&:hover': { background: '#1565c0' } }}
+                    onClick={fetchAndDownloadTxt} // 绑定点击事件
+                >
+                    查找结果
+                </Button>
             </Box>
         </React.Fragment>
     );
