@@ -18,6 +18,8 @@ using System.Text.RegularExpressions;
 using static OfficeOpenXml.ExcelErrorValue;
 using redis.WebAPi.Models;
 using System.Text.RegularExpressions;
+using Azure.ResourceManager.Resources;
+using Azure.ResourceManager.Redis;
 
 
 
@@ -73,6 +75,33 @@ namespace redis.WebAPi.Service.AzureShared
                 }
                 return vmTaskLists;
             }
+        }
+
+        public async Task<List<BenchmarkQueueDataModel>> GeneratingQCommendByGroupResourse(string group) 
+        {
+            var groupResourse = _client.GetGroup(group);
+            var redisCollection = groupResourse.GetAllRedis();
+            List<BenchmarkQueueDataModel> listQ = new List<BenchmarkQueueDataModel>();
+            foreach (var redis in redisCollection) 
+            {
+                var queue = new BenchmarkQueueDataModel
+                {
+                    Name = redis.Data.Name,
+                    Clients = 64,
+                    Threads = 16,
+                    Requests = 100000,
+                    Size = 1024,
+                    Pipeline = redis.Data.Name.Contains("Premium") ? 20:10,
+                    pw = redis.Data.AccessKeys.PrimaryKey,
+                    Status =1,
+                    TimeStamp = DateTime.Now,
+                    Times = 10,
+                    Region = "East US 2 EUAP"
+                  
+                };
+                listQ.Add(queue);
+            }
+            return listQ;
         }
 
         public async Task  ExecuteTasksOnVMs()

@@ -79,6 +79,37 @@ namespace Benchmark_API.Controllers
             }
         }
 
+        [HttpPost("InsertQCommandByGroupName")]
+        public async Task<IActionResult> InertQCommandByGroupName([FromBody] string groupName) 
+        {
+            var list = _connectionVMService.GeneratingQCommendByGroupResourse(groupName).Result;
+            try
+            {
+                foreach (var item in list) 
+                {
+                    using (var scope = _serviceProvider.CreateScope())
+                    {
+                        var dbContext = scope.ServiceProvider.GetService<BenchmarkContent>();
+                        for (int i = 1; i <= item.Times i++)
+                        {
+                            item.Name = item.Name + i;
+                            var benchmarkRequest = item.ToBenchmarkRequestModel();
+
+                            dbContext.BenchmarkQueue.Add(item);
+                            dbContext.BenchmarkRequest.Add(benchmarkRequest);
+
+                        }
+                        await dbContext.SaveChangesAsync();
+                    }
+                }
+                return Ok("Task has been enqueued.");
+            }
+            catch (Exception ex) 
+            {
+                return StatusCode(500, new { message = "Error occurred during benchmark execution", error = ex.Message });
+            }
+        }
+
         // Receive the front-end parameters, then put them into the database and invoke the VM operation
         [HttpPost("enqueue")]
         public async Task<IActionResult> InvokeVMOperation([FromBody] BenchmarkRequestModel benchmarkRequest)
