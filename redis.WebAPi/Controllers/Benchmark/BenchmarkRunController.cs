@@ -90,7 +90,7 @@ namespace Benchmark_API.Controllers
                     using (var scope = _serviceProvider.CreateScope())
                     {
                         var dbContext = scope.ServiceProvider.GetService<BenchmarkContent>();
-                        for (int i = 1; i <= item.Times i++)
+                        for (int i = 1; i <= item.Times; i++)
                         {
                             item.Name = item.Name + i;
                             var benchmarkRequest = item.ToBenchmarkRequestModel();
