@@ -29,6 +29,9 @@ namespace redis.WebAPi.Model
 
         [JsonProperty("Gets p99.99")]
         public double GetsP99_99 { get; set; }
+
+        [JsonProperty("Compressed Histogram")]
+        public double CompressedHistogram { get; set; }
         public DateTime TimeStamp { get; set; }
         public int ID { get; set; }
     }
