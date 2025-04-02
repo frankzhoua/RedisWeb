@@ -32,6 +32,9 @@ namespace redis.WebAPi.Model.BenchmarkModel
 
         [JsonProperty("Gets p99.99")]
         public double GetsP99_99 { get; set; }
+
+        [JsonProperty("Compressed Histogram")]
+        public double CompressedHistogram { get; set; }
         public DateTime TimeStamp { get; set; }
         public int ID { get; set; }
 
@@ -46,6 +49,7 @@ namespace redis.WebAPi.Model.BenchmarkModel
             GetsP99 = data.GetsP99;
             GetsP99_90 = data.GetsP99_90;
             GetsP99_99 = data.GetsP99_99;
+            CompressedHistogram = data.CompressedHistogram;
             TimeStamp = data.TimeStamp;
             ID = data.ID;
         }
@@ -64,6 +68,7 @@ namespace redis.WebAPi.Model.BenchmarkModel
                 GetsP99_90 = GetsP99_90,
                 GetsP99_99 = GetsP99_99,
                 TimeStamp = TimeStamp,
+                CompressedHistogram = CompressedHistogram,
                 ID = ID
             };
         }

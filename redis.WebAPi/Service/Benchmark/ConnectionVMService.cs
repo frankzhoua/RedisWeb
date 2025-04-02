@@ -219,35 +219,71 @@ namespace redis.WebAPi.Service.AzureShared
         public async Task FinalDataCollection(DateTime targetDate)
         {
 
-            using (var scope = _serviceProvider.CreateScope()) 
+            try
             {
-                var dbContext = scope.ServiceProvider.GetRequiredService<BenchmarkContent>();
-                var allData = dbContext.BenchmarkResultData.AsNoTracking()
-                    .Where(d => d.TimeStamp.Date == targetDate.Date)
-                    .ToList();
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var dbContext = scope.ServiceProvider.GetRequiredService<BenchmarkContent>();
+                    var allData = dbContext.BenchmarkResultData.AsNoTracking()
+                        .Where(d => d.TimeStamp.Date == targetDate.Date)
+                        .ToList();
 
-                if (!allData.Any()) return; 
+                    if (!allData.Any()) return;
 
-                // 计算各个 SKU 的中位数
-                var medianResults = allData
-                    .Where(data => !string.IsNullOrEmpty(data.CacheName))
-                    .GroupBy(data => ExtractSku(data.CacheName))
-                    .Select(group => new BenchmarkFinalDataModel
+                    // 首先计算 GetsRPS 的中位数
+                    var rpsMedians = allData
+                        .Where(data => !string.IsNullOrEmpty(data.CacheName))
+                        .GroupBy(data => ExtractSku(data.CacheName))
+                        .Select(group => new
+                        {
+                            CacheName = group.Key,
+                            GetsRPSMedian = CalculateMedian(group.Select(d => d.GetsRPS).ToList())
+                        })
+                        .ToList();
+
+                    // 然后为每个 CacheName 找到对应的记录值
+                    var medianResults = rpsMedians
+                        .Select(rpsMedian =>
+                        {
+                            // 获取 GetsRPS 中位数对应的记录
+                            var correspondingRecord = allData
+                                .Where(data => ExtractSku(data.CacheName) == rpsMedian.CacheName)
+                                .OrderBy(data => Math.Abs(data.GetsRPS - rpsMedian.GetsRPSMedian))
+                                .FirstOrDefault();
+
+                            if (correspondingRecord != null)
+                            {
+                                return new BenchmarkFinalDataModel
+                                {
+                                    CacheName = rpsMedian.CacheName,
+                                    TotalDuration = correspondingRecord.TotalDuration,
+                                    TimeUnit = "MILLISECONDS",
+                                    GetsRPS = rpsMedian.GetsRPSMedian,  // 使用计算出的 GetsRPS 中位数
+                                    GetsAverageLatency = correspondingRecord.GetsAverageLatency,
+                                    GetsP50 = correspondingRecord.GetsP50,
+                                    GetsP99 = correspondingRecord.GetsP99,
+                                    GetsP99_90 = correspondingRecord.GetsP99_90,
+                                    GetsP99_99 = correspondingRecord.GetsP99_99,
+                                    TimeStamp = DateTime.Now
+                                };
+                            }
+
+                            return null;
+                        })
+                        .Where(result => result != null)
+                        .ToList();
+
+                    if (medianResults.Any())
                     {
-                        CacheName = group.Key,
-                        TotalDuration = CalculateMedian(group.Select(d => d.TotalDuration).ToList()),
-                        TimeUnit = "MILLISECONDS",
-                        GetsRPS = CalculateMedian(group.Select(d => d.GetsRPS).ToList()),
-                        GetsAverageLatency = CalculateMedian(group.Select(d => d.GetsAverageLatency).ToList()),
-                        GetsP50 = CalculateMedian(group.Select(d => d.GetsP50).ToList()),
-                        GetsP99 = CalculateMedian(group.Select(d => d.GetsP99).ToList()),
-                        GetsP99_90 = CalculateMedian(group.Select(d => d.GetsP99_90).ToList()),
-                        GetsP99_99 = CalculateMedian(group.Select(d => d.GetsP99_99).ToList()),
-                        TimeStamp = DateTime.Now
-                    })
-                    .ToList();
-                dbContext.BenchmarkFinalData.AddRange(medianResults);
-                dbContext.SaveChanges();
+                        dbContext.BenchmarkFinalData.AddRange(medianResults);
+                        await dbContext.SaveChangesAsync();  
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // 记录错误信息
+                Console.Error.WriteLine($"Error in FinalDataCollection: {ex.Message}");
             }
         }
 
@@ -294,7 +330,7 @@ namespace redis.WebAPi.Service.AzureShared
             await vm.RunCommandAsync(WaitUntil.Completed, runCommandInput);
             var runCommandInput2 = new RunCommandInput("RunShellScript")
             {
-                Script = { "jq '{\r\n    \"Total duration\": .[\"ALL STATS\"].Runtime[\"Total duration\"],\r\n    \"Time unit\": .[\"ALL STATS\"].Runtime[\"Time unit\"],\r\n    \"Gets RPS\": .[\"ALL STATS\"].Gets[\"Ops/sec\"],\r\n    \"Gets average latency\": .[\"ALL STATS\"].Gets[\"Average Latency\"],\r\n    \"Gets p50.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p50.00\"],\r\n    \"Gets p99.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.00\"],\r\n    \"Gets p99.90\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.90\"],\r\n    \"Gets p99.99\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.99\"]\r\n}' /home/azureuser/out.json" }
+                Script = { "jq '{\r\n    \"Total duration\": .[\"ALL STATS\"].Runtime[\"Total duration\"],\r\n    \"Time unit\": .[\"ALL STATS\"].Runtime[\"Time unit\"],\r\n    \"Gets RPS\": .[\"ALL STATS\"].Gets[\"Ops/sec\"],\r\n    \"Gets average latency\": .[\"ALL STATS\"].Gets[\"Average Latency\"],\r\n    \"Gets p50.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p50.00\"],\r\n    \"Gets p99.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.00\"],\r\n    \"Gets p99.90\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.90\"],\r\n    \"Gets p99.99\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.99\"]\r\n    \"Compressed Histogram\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"Histogram log format\"][\"Compressed Histogram\"]\r\n}' /home/azureuser/out.json" }
 
             };
             var output = (await vm.RunCommandAsync(WaitUntil.Completed, runCommandInput2)).Value.Value.Select(r=>r.Message).First();
