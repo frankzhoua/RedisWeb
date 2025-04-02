@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using redis.WebAPi.Filters;
-using redis.WebAPi.Service.AzureShared;
 using redis.WebAPi.Service.IService;
 namespace redis.WebAPi.Controllers
 {

@@ -1,14 +1,8 @@
 ﻿using Azure.Core;
-using Azure.Core.Pipeline;
 using Azure.Identity;
 using Azure.ResourceManager;
-using Azure.ResourceManager.Compute.Mocking;
-using Azure.ResourceManager.KeyVault;
-using Azure.ResourceManager.ManagedServiceIdentities;
 using Azure.ResourceManager.Redis;
 using Azure.ResourceManager.Resources;
-using redis.WebAPi.Service.IService;
-using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 
 namespace redis.WebAPi.Service.AzureShared
