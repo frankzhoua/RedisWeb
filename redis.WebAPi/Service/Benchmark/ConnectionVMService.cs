@@ -264,7 +264,8 @@ namespace redis.WebAPi.Service.AzureShared
                                     GetsP99 = correspondingRecord.GetsP99,
                                     GetsP99_90 = correspondingRecord.GetsP99_90,
                                     GetsP99_99 = correspondingRecord.GetsP99_99,
-                                    TimeStamp = DateTime.Now
+                                    TimeStamp = DateTime.Now,
+                                    CompressedHistogram = correspondingRecord.CompressedHistogram
                                 };
                             }
 
