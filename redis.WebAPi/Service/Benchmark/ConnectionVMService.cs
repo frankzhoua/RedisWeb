@@ -2,23 +2,12 @@ using Azure.Core;
 using Azure.ResourceManager.Compute.Models;
 using Azure;
 using Azure.ResourceManager.Compute;
-using redis.WebAPi.Service.Benchmark;
 using redis.WebAPi.Repository.AppDbContext;
 using Microsoft.EntityFrameworkCore;
-using System.Drawing;
-using System.Threading;
 using redis.WebAPi.Model;
-using Microsoft.AspNetCore.Mvc;
 using redis.WebAPi.Model.BenchmarkModel;
-using Polly;
-using Microsoft.EntityFrameworkCore.Migrations.Operations;
-using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using System.Text.RegularExpressions;
-using static OfficeOpenXml.ExcelErrorValue;
-using redis.WebAPi.Models;
-using System.Text.RegularExpressions;
-using Azure.ResourceManager.Resources;
 using Azure.ResourceManager.Redis;
 
 
@@ -52,14 +41,14 @@ namespace redis.WebAPi.Service.AzureShared
              */
             using (var scope = _serviceProvider.CreateScope())
             {
-                _logger.LogInformation("\n 执行分配！！！！！！！");
+                _logger.LogInformation("\n Performing Distribution！！！！！！！");
                 var dbContext = scope.ServiceProvider.GetRequiredService<BenchmarkContent>();
 
                 var tasks = await dbContext.BenchmarkQueue
                     .Where(t => t.Status == 2)  
                     .OrderBy(t => t.Id)  
                     .ToListAsync();
-                _logger.LogInformation("\n 执行分配完毕！！！！");
+                _logger.LogInformation("\n Distribution Done！！！！");
                 foreach (var task in tasks)
                 {
 
@@ -138,7 +127,7 @@ namespace redis.WebAPi.Service.AzureShared
                             using (var scope = _serviceProvider.CreateScope())
                             {
                                 var dbContext = scope.ServiceProvider.GetRequiredService<BenchmarkContent>();
-                                _logger.LogInformation($"当前任务：{task.Name}, 当前进程：{Thread.CurrentThread.ManagedThreadId}");
+                                _logger.LogInformation($"Current processor：{task.Name}, processor id：{Thread.CurrentThread.ManagedThreadId}");
 
                                 task.Status = 1;
                                 dbContext.BenchmarkQueue.Update(task);
@@ -147,7 +136,7 @@ namespace redis.WebAPi.Service.AzureShared
                                 string output = await RunTasksForVM(task);
                                 results.Add($"[{vmName}] {output}");
 
-                                _logger.LogInformation($"任务：{task.Name} 结束");
+                                _logger.LogInformation($"Task：{task.Name} Done");
                             }
                         }
                         catch (Exception ex)
@@ -159,7 +148,7 @@ namespace redis.WebAPi.Service.AzureShared
                                 dbContext.BenchmarkQueue.Update(task);
                                 await dbContext.SaveChangesAsync();
                             }
-                            _logger.LogError($"执行 {task.Name} 时发生错误: {ex.Message}");
+                            _logger.LogError($"Perform task: {task.Name} got error : {ex.Message}");
                             continue;
                         }
                     }
@@ -185,14 +174,14 @@ namespace redis.WebAPi.Service.AzureShared
                     string output = await ConnectionVMTest(task, dbContext);
                     task.Status = 3;
                     dbContext.BenchmarkRequest.Update(task.ToBenchmarkRequestModel());
-                    await dbContext.SaveChangesAsync(); // 保存更改
+                    await dbContext.SaveChangesAsync(); 
                     return output;
                 }
                     
             }
             catch (Exception ex) 
             {
-                _logger.LogError($"执行任务失败: {task.Name}, 错误: {ex.Message}");
+                _logger.LogError($"Task faild: {task.Name}, Error : {ex.Message}");
 
                 task.Status = 4; 
                 using (var scope = _serviceProvider.CreateScope())
@@ -354,9 +343,9 @@ namespace redis.WebAPi.Service.AzureShared
 
         public async Task<VirtualMachineResource> GetVMByCacheName(string cacheName)
         {
-            _logger.LogInformation("\n 执行获取虚拟机！！！！");
+            _logger.LogInformation("\n Geting VMs !!!!!! ");
             string vmName = AllocateVMByCacheName(cacheName);
-            _logger.LogInformation("\n 虚拟机获取完毕，当前虚拟机："+vmName);
+           
             return await GetVirtualMachineAsync(vmName);
         }
 

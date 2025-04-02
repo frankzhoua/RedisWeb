@@ -1,14 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using redis.WebAPi.Repository.AppDbContext; 
 using redis.WebAPi.Model;
-using redis.WebAPi.Service.IService;
-using redis.WebAPi.Service;
 using Microsoft.EntityFrameworkCore;
-using redis.WebAPi.Service.Benchmark;
 using redis.WebAPi.Model.BenchmarkModel;
 using redis.WebAPi.Service.AzureShared;
-using System.Threading;
-using Polly;
 using System.Text;
 using System.Text.Json;
 
