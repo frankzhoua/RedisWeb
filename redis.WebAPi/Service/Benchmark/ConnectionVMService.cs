@@ -87,7 +87,6 @@ namespace redis.WebAPi.Service.AzureShared
                 var queue = new BenchmarkQueueDataModel
                 {
                     Name = redis.Data.Name,
-                    Clients = 64,
                     Threads = 16,
                     Requests = 100000,
                     Size = 1024,
@@ -99,6 +98,9 @@ namespace redis.WebAPi.Service.AzureShared
                     Region = "East US 2 EUAP"
                   
                 };
+                if (redis.Data.Name.Contains("Premium")) { queue.Clients = 64; }
+                if (redis.Data.Name.Contains("Standard")) { queue.Clients = 32; }
+                if (redis.Data.Name.Contains("Basic")){ queue.Clients = 16;}
                 listQ.Add(queue);
             }
             return listQ;
