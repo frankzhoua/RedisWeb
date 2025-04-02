@@ -92,15 +92,15 @@ namespace redis.WebAPi.Service.AzureShared
                     Size = 1024,
                     Pipeline = redis.Data.Name.Contains("Premium") ? 20:10,
                     pw = redis.GetKeys().Value.PrimaryKey,
-                    Status =1,
+                    Status =2,
                     TimeStamp = DateTime.Now,
                     Times = 10,
                     Region = "East US 2 EUAP"
                   
                 };
-                if (redis.Data.Name.Contains("Premium")) { queue.Clients = 64; }
-                if (redis.Data.Name.Contains("Standard")) { queue.Clients = 32; }
-                if (redis.Data.Name.Contains("Basic")){ queue.Clients = 16;}
+                if (redis.Data.Name.Contains("P")) { queue.Clients = 64; }
+                if (redis.Data.Name.Contains("S")) { queue.Clients = 32; }
+                if (redis.Data.Name.Contains("B")){ queue.Clients = 16;}
                 listQ.Add(queue);
             }
             return listQ;
