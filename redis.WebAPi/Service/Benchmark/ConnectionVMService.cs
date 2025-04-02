@@ -92,7 +92,7 @@ namespace redis.WebAPi.Service.AzureShared
                     Requests = 100000,
                     Size = 1024,
                     Pipeline = redis.Data.Name.Contains("Premium") ? 20:10,
-                    pw = redis.Data.AccessKeys.PrimaryKey,
+                    pw = redis.GetKeys().Value.PrimaryKey,
                     Status =1,
                     TimeStamp = DateTime.Now,
                     Times = 10,
