@@ -91,11 +91,25 @@ namespace Benchmark_API.Controllers
                     {
                         var dbContext = scope.ServiceProvider.GetService<BenchmarkContent>();
                         for (int i = 1; i <= item.Times; i++)
-                        {
-                            item.Name = item.Name + i;
-                            var benchmarkRequest = item.ToBenchmarkRequestModel();
+                        { 
+                            var newItem = new BenchmarkQueueDataModel 
+                            { 
+                                Name = item.Name+"("+i+")",
+                                Clients = item.Clients,
+                                pw = item.pw,
+                                Size = item.Size,
+                                Status = item.Status,
+                                TimeStamp = item.TimeStamp,
+                                Pipeline = item.Pipeline,
+                                Id = item.Id,
+                                Description = item.Description,
+                                Region = item.Region,
+                                Requests = item.Requests,
+                                Threads = item.Threads,
+                            };
+                            var benchmarkRequest = newItem.ToBenchmarkRequestModel();
 
-                            dbContext.BenchmarkQueue.Add(item);
+                            dbContext.BenchmarkQueue.Add(newItem);
                             dbContext.BenchmarkRequest.Add(benchmarkRequest);
 
                         }
