@@ -290,8 +290,8 @@ namespace redis.WebAPi.Service.AzureShared
 
         private string ExtractSku(string cacheName)
         {
-            var parts = cacheName.Split('-'); 
-            return parts.Length > 1 ? parts[1] : "Unknown"; 
+            
+            return Regex.Replace(cacheName, @"\s*\(.*\)", "");
         }
 
         private double CalculateMedian(List<double> values)
@@ -331,7 +331,7 @@ namespace redis.WebAPi.Service.AzureShared
             await vm.RunCommandAsync(WaitUntil.Completed, runCommandInput);
             var runCommandInput2 = new RunCommandInput("RunShellScript")
             {
-                Script = { "jq '{\r\n    \"Total duration\": .[\"ALL STATS\"].Runtime[\"Total duration\"],\r\n    \"Time unit\": .[\"ALL STATS\"].Runtime[\"Time unit\"],\r\n    \"Gets RPS\": .[\"ALL STATS\"].Gets[\"Ops/sec\"],\r\n    \"Gets average latency\": .[\"ALL STATS\"].Gets[\"Average Latency\"],\r\n    \"Gets p50.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p50.00\"],\r\n    \"Gets p99.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.00\"],\r\n    \"Gets p99.90\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.90\"],\r\n    \"Gets p99.99\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.99\"]\r\n    \"Compressed Histogram\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"Histogram log format\"][\"Compressed Histogram\"]\r\n}' /home/azureuser/out.json" }
+                Script = { "jq '{\r\n    \"Total duration\": .[\"ALL STATS\"].Runtime[\"Total duration\"],\r\n    \"Time unit\": .[\"ALL STATS\"].Runtime[\"Time unit\"],\r\n    \"Gets RPS\": .[\"ALL STATS\"].Gets[\"Ops/sec\"],\r\n    \"Gets average latency\": .[\"ALL STATS\"].Gets[\"Average Latency\"],\r\n    \"Gets p50.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p50.00\"],\r\n    \"Gets p99.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.00\"],\r\n    \"Gets p99.90\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.90\"],\r\n    \"Gets p99.99\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.99\"],\r\n    \"Compressed Histogram\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"Histogram log format\"][\"Compressed Histogram\"]\r\n}' /home/azureuser/out.json" }
 
             };
             var output = (await vm.RunCommandAsync(WaitUntil.Completed, runCommandInput2)).Value.Value.Select(r=>r.Message).First();

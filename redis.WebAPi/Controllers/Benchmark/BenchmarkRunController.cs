@@ -61,11 +61,11 @@ namespace Benchmark_API.Controllers
         }
 
         [HttpPost("FinalDataTest")]
-        public async Task<IActionResult> FinalData()
+        public async Task<IActionResult> FinalData([FromBody] DateTime time)
         {
             try
             {
-                _connectionVMService.FinalDataCollection(DateTime.Now);
+                await _connectionVMService.FinalDataCollection(time);
                 return Ok();
             }
             catch (Exception ex)
