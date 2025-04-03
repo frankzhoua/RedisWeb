@@ -77,19 +77,36 @@ namespace redis.WebAPi.Service.AzureShared
                 {
                     Name = redis.Data.Name,
                     Threads = 16,
-                    Requests = 100000,
+                    Requests = 1000,
                     Size = 1024,
-                    Pipeline = redis.Data.Name.Contains("Premium") ? 20:10,
+                    Pipeline = redis.Data.Name.Contains("P") ? 20:10,
                     pw = redis.GetKeys().Value.PrimaryKey,
                     Status =2,
                     TimeStamp = DateTime.Now,
-                    Times = 10,
+                    Times = 5,
                     Region = "East US 2 EUAP"
                   
                 };
-                if (redis.Data.Name.Contains("P")) { queue.Clients = 64; }
-                if (redis.Data.Name.Contains("S")) { queue.Clients = 32; }
-                if (redis.Data.Name.Contains("B")){ queue.Clients = 16;}
+                if (redis.Data.Name.Contains("Basic"))
+                {
+                    queue.Clients = 1;
+                }
+                else if (redis.Data.Name.Contains("Standard"))
+                {
+                    if (redis.Data.Name.Contains("C0") || redis.Data.Name.Contains("C1"))
+                    {
+                        queue.Clients = 1;
+                    }
+                    else
+                    {
+                        queue.Clients = 2;
+                    }
+                }
+                else
+                {
+                    queue.Clients = 4;
+                }
+
                 listQ.Add(queue);
             }
             return listQ;
@@ -206,7 +223,13 @@ namespace redis.WebAPi.Service.AzureShared
             }
 
             string cacheName = request.Name;
-            cacheName = Regex.Replace(cacheName, @"\d$", "");  
+            int index = cacheName.IndexOf('(');
+
+            if (index != -1)
+            {
+                cacheName = cacheName.Substring(0, index);
+            }
+
             var vm = GetVMByCacheName(cacheName).Result;
             var output = await RunBenchmarkOnVM(vm, request);
             return output;
@@ -290,8 +313,7 @@ namespace redis.WebAPi.Service.AzureShared
 
         private string ExtractSku(string cacheName)
         {
-            var parts = cacheName.Split('-'); 
-            return parts.Length > 1 ? parts[1] : "Unknown"; 
+            return Regex.Replace(cacheName, @"\s*\(.*\)", "");
         }
 
         private double CalculateMedian(List<double> values)
@@ -316,7 +338,13 @@ namespace redis.WebAPi.Service.AzureShared
             var timeStamp = DateTime.Now;
             string fileName = $"output-{timeStamp}";
             string cacheName = request.Name;
-            cacheName = Regex.Replace(cacheName, @"\d$", "");
+            int index = cacheName.IndexOf('(');
+
+            if (index != -1)
+            {
+                cacheName = cacheName.Substring(0, index);
+                cacheName = cacheName + ".redis.cache.windows.net";
+            }
 
             var runCommandInput = new RunCommandInput("RunShellScript")
             {
@@ -329,9 +357,10 @@ namespace redis.WebAPi.Service.AzureShared
             };
 
             await vm.RunCommandAsync(WaitUntil.Completed, runCommandInput);
+            
             var runCommandInput2 = new RunCommandInput("RunShellScript")
             {
-                Script = { "jq '{\r\n    \"Total duration\": .[\"ALL STATS\"].Runtime[\"Total duration\"],\r\n    \"Time unit\": .[\"ALL STATS\"].Runtime[\"Time unit\"],\r\n    \"Gets RPS\": .[\"ALL STATS\"].Gets[\"Ops/sec\"],\r\n    \"Gets average latency\": .[\"ALL STATS\"].Gets[\"Average Latency\"],\r\n    \"Gets p50.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p50.00\"],\r\n    \"Gets p99.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.00\"],\r\n    \"Gets p99.90\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.90\"],\r\n    \"Gets p99.99\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.99\"]\r\n    \"Compressed Histogram\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"Histogram log format\"][\"Compressed Histogram\"]\r\n}' /home/azureuser/out.json" }
+                Script = { "jq '{\r\n    \"Total duration\": .[\"ALL STATS\"].Runtime[\"Total duration\"],\r\n    \"Time unit\": .[\"ALL STATS\"].Runtime[\"Time unit\"],\r\n    \"Gets RPS\": .[\"ALL STATS\"].Gets[\"Ops/sec\"],\r\n    \"Gets average latency\": .[\"ALL STATS\"].Gets[\"Average Latency\"],\r\n    \"Gets p50.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p50.00\"],\r\n    \"Gets p99.00\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.00\"],\r\n    \"Gets p99.90\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.90\"],\r\n    \"Gets p99.99\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"p99.99\"],\r\n    \"Compressed Histogram\": .[\"ALL STATS\"].Gets[\"Percentile Latencies\"][\"Histogram log format\"][\"Compressed Histogram\"]\r\n}' /home/azureuser/out.json" }
 
             };
             var output = (await vm.RunCommandAsync(WaitUntil.Completed, runCommandInput2)).Value.Value.Select(r=>r.Message).First();
@@ -368,9 +397,9 @@ namespace redis.WebAPi.Service.AzureShared
         public async Task<VirtualMachineResource> GetVirtualMachineAsync(string vmName)
         {
             var armClient = _client.ArmClient;
-            //var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "1e57c478-0901-4c02-8d35-49db234b78d2"));
-            var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "fc2f20f5-602a-4ebd-97e6-4fae3f1f6424"));
-            var vmResource = (await subResource.GetResourceGroupAsync("MemtierbenchmarkTest")).Value.GetVirtualMachines().GetAsync(vmName).Result;
+            var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "1e57c478-0901-4c02-8d35-49db234b78d2"));
+            //var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "fc2f20f5-602a-4ebd-97e6-4fae3f1f6424"));
+            var vmResource = (await subResource.GetResourceGroupAsync("Redis_MemtierbenchmarkTest")).Value.GetVirtualMachines().GetAsync(vmName).Result;
           
 
             return vmResource;
@@ -390,25 +419,37 @@ namespace redis.WebAPi.Service.AzureShared
         {
             cacheName = cacheName.ToLower();
 
-            if (cacheName.Contains("p1") || cacheName.Contains("p2")) return "MemtierBenchmarkM1-Premium-P1P2";
-            if (cacheName.Contains("p3") || cacheName.Contains("p4")) return "MemtierBenchmarkM2-Premium-P3P4";
-            if (cacheName.Contains("p5")) return "MemtierBenchmarkM3-Premium-P5";
+            //if (cacheName.Contains("p1") || cacheName.Contains("p2")) return "MemtierBenchmarkM1-Premium-P1P2";
+            //if (cacheName.Contains("p3") || cacheName.Contains("p4")) return "MemtierBenchmarkM2-Premium-P3P4";
+            //if (cacheName.Contains("p5")) return "MemtierBenchmarkM3-Premium-P5";
 
-            if (cacheName.Contains("c0") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
-            if (cacheName.Contains("c1") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
-            if (cacheName.Contains("c2") && cacheName.Contains("standard")) return "MemtierBenchmarkM2-Standard-C2C3";
-            if (cacheName.Contains("c3") && cacheName.Contains("standard")) return "MemtierBenchmarkM2-Standard-C2C3";
-            if (cacheName.Contains("c4") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
-            if (cacheName.Contains("c5") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
-            if (cacheName.Contains("c6") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
+            //if (cacheName.Contains("c0") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+            //if (cacheName.Contains("c1") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+            //if (cacheName.Contains("c2") && cacheName.Contains("standard")) return "MemtierBenchmarkM2-Standard-C2C3";
+            //if (cacheName.Contains("c3") && cacheName.Contains("standard")) return "MemtierBenchmarkM2-Standard-C2C3";
+            //if (cacheName.Contains("c4") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
+            //if (cacheName.Contains("c5") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
+            //if (cacheName.Contains("c6") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
 
-            if (cacheName.Contains("c0") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
-            if (cacheName.Contains("c1") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
-            if (cacheName.Contains("c2") && cacheName.Contains("basic")) return "MemtierBenchmarkM2-Basic-C3C4";
-            if (cacheName.Contains("c3") && cacheName.Contains("basic")) return "MemtierBenchmarkM2-Basic-C3C4";
-            if (cacheName.Contains("c4") && cacheName.Contains("basic")) return "MemtierBenchmarkM3-Basic-C4C5C6";
-            if (cacheName.Contains("c5") && cacheName.Contains("basic")) return "MemtierBenchmarkM3-Basic-C4C5C6";
-            if (cacheName.Contains("c6") && cacheName.Contains("basic")) return "MemtierBenchmarkM3-Basic-C4C5C6";
+            //if (cacheName.Contains("c0") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+            //if (cacheName.Contains("c1") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+            //if (cacheName.Contains("c2") && cacheName.Contains("basic")) return "MemtierBenchmarkM2-Basic-C3C4";
+            //if (cacheName.Contains("c3") && cacheName.Contains("basic")) return "MemtierBenchmarkM2-Basic-C3C4";
+            //if (cacheName.Contains("c4") && cacheName.Contains("basic")) return "MemtierBenchmarkM3-Basic-C4C5C6";
+            //if (cacheName.Contains("c5") && cacheName.Contains("basic")) return "MemtierBenchmarkM3-Basic-C4C5C6";
+            //if (cacheName.Contains("c6") && cacheName.Contains("basic")) return "MemtierBenchmarkM3-Basic-C4C5C6";
+
+            if (cacheName.Contains("p1") || cacheName.Contains("p2") || cacheName.Contains("p3") || cacheName.Contains("p4") || cacheName.Contains("p5")) 
+                return "MemtierBenchmarkTestP";
+
+            if ((cacheName.Contains("c0") || cacheName.Contains("c1") || cacheName.Contains("c2") || cacheName.Contains("c3") || cacheName.Contains("c4") || cacheName.Contains("c5") || cacheName.Contains("c6")) && cacheName.Contains("standard"))
+            {
+                return "MemtierBenchmarkTestSC";
+            }
+            if ((cacheName.Contains("c0") || cacheName.Contains("c1") || cacheName.Contains("c2") || cacheName.Contains("c3") || cacheName.Contains("c4") || cacheName.Contains("c5") || cacheName.Contains("c6")) && cacheName.Contains("basic"))
+            {
+                return "MemtierBenchmarkTestBC";
+            }
 
             throw new ArgumentException($"Invalid cache name: {cacheName}");
         }

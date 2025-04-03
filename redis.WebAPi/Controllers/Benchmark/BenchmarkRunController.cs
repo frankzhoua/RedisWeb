@@ -197,7 +197,7 @@ namespace Benchmark_API.Controllers
                             GetsP99 = item.GetsP99,
                             GetsP99_90 = item.GetsP99_90,
                             GetsP99_99 = item.GetsP99_99,
-                            TimeStamp = item.TimeStamp
+                            Compressed_Histogram = item.CompressedHistogram
 
                         }, new JsonSerializerOptions { WriteIndented = true });
                         sb.AppendLine(jsonData);
