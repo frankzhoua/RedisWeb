@@ -397,9 +397,9 @@ namespace redis.WebAPi.Service.AzureShared
         public async Task<VirtualMachineResource> GetVirtualMachineAsync(string vmName)
         {
             var armClient = _client.ArmClient;
-            var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "1e57c478-0901-4c02-8d35-49db234b78d2"));
-            //var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "fc2f20f5-602a-4ebd-97e6-4fae3f1f6424"));
-            var vmResource = (await subResource.GetResourceGroupAsync("Redis_MemtierbenchmarkTest")).Value.GetVirtualMachines().GetAsync(vmName).Result;
+            //var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "1e57c478-0901-4c02-8d35-49db234b78d2"));
+            var subResource = armClient.GetSubscriptionResource(new ResourceIdentifier("/subscriptions/" + "fc2f20f5-602a-4ebd-97e6-4fae3f1f6424"));
+            var vmResource = (await subResource.GetResourceGroupAsync("MemtierbenchmarkTest")).Value.GetVirtualMachines().GetAsync(vmName).Result;
           
 
             return vmResource;
@@ -419,37 +419,36 @@ namespace redis.WebAPi.Service.AzureShared
         {
             cacheName = cacheName.ToLower();
 
-            //if (cacheName.Contains("p1") || cacheName.Contains("p2")) return "MemtierBenchmarkM1-Premium-P1P2";
-            //if (cacheName.Contains("p3") || cacheName.Contains("p4")) return "MemtierBenchmarkM2-Premium-P3P4";
-            //if (cacheName.Contains("p5")) return "MemtierBenchmarkM3-Premium-P5";
+            if (cacheName.Contains("p1") || cacheName.Contains("p2")) return "MemtierBenchmarkM1-Premium-P1P2";
+            if (cacheName.Contains("p3") || cacheName.Contains("p4")) return "MemtierBenchmarkM2-Premium-P3P4";
+            if (cacheName.Contains("p5")) return "MemtierBenchmarkM3-Premium-P5";
 
-            //if (cacheName.Contains("c0") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
-            //if (cacheName.Contains("c1") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
-            //if (cacheName.Contains("c2") && cacheName.Contains("standard")) return "MemtierBenchmarkM2-Standard-C2C3";
-            //if (cacheName.Contains("c3") && cacheName.Contains("standard")) return "MemtierBenchmarkM2-Standard-C2C3";
-            //if (cacheName.Contains("c4") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
-            //if (cacheName.Contains("c5") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
-            //if (cacheName.Contains("c6") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
+            if (cacheName.Contains("c0") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+            if (cacheName.Contains("c1") && cacheName.Contains("standard")) return "MemtierBenchmarkM1-Standard-C0C1";
+            if (cacheName.Contains("c2") && cacheName.Contains("standard")) return "MemtierBenchmarkM2-Standard-C2C3";
+            if (cacheName.Contains("c3") && cacheName.Contains("standard")) return "MemtierBenchmarkM2-Standard-C2C3";
+            if (cacheName.Contains("c4") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
+            if (cacheName.Contains("c5") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
+            if (cacheName.Contains("c6") && cacheName.Contains("standard")) return "MemtierBenchmarkM3-Standard-C4C5C6";
 
-            //if (cacheName.Contains("c0") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
-            //if (cacheName.Contains("c1") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
-            //if (cacheName.Contains("c2") && cacheName.Contains("basic")) return "MemtierBenchmarkM2-Basic-C3C4";
-            //if (cacheName.Contains("c3") && cacheName.Contains("basic")) return "MemtierBenchmarkM2-Basic-C3C4";
-            //if (cacheName.Contains("c4") && cacheName.Contains("basic")) return "MemtierBenchmarkM3-Basic-C4C5C6";
-            //if (cacheName.Contains("c5") && cacheName.Contains("basic")) return "MemtierBenchmarkM3-Basic-C4C5C6";
-            //if (cacheName.Contains("c6") && cacheName.Contains("basic")) return "MemtierBenchmarkM3-Basic-C4C5C6";
-
-            if (cacheName.Contains("p1") || cacheName.Contains("p2") || cacheName.Contains("p3") || cacheName.Contains("p4") || cacheName.Contains("p5")) 
-                return "MemtierBenchmarkTestP";
-
-            if ((cacheName.Contains("c0") || cacheName.Contains("c1") || cacheName.Contains("c2") || cacheName.Contains("c3") || cacheName.Contains("c4") || cacheName.Contains("c5") || cacheName.Contains("c6")) && cacheName.Contains("standard"))
+            if (cacheName.Contains("c0") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+            if (cacheName.Contains("c1") && cacheName.Contains("basic")) return "MemtierBenchmarkM1-Basic-C0C1";
+            if ((cacheName.Contains("c2") || cacheName.Contains("c3") || cacheName.Contains("c4") || cacheName.Contains("c5") || cacheName.Contains("c6")) && cacheName.Contains("basic"))
             {
-                return "MemtierBenchmarkTestSC";
+                return "MemtierBenchmarkM2-Basic-C3C4";
             }
-            if ((cacheName.Contains("c0") || cacheName.Contains("c1") || cacheName.Contains("c2") || cacheName.Contains("c3") || cacheName.Contains("c4") || cacheName.Contains("c5") || cacheName.Contains("c6")) && cacheName.Contains("basic"))
-            {
-                return "MemtierBenchmarkTestBC";
-            }
+
+            //if (cacheName.Contains("p1") || cacheName.Contains("p2") || cacheName.Contains("p3") || cacheName.Contains("p4") || cacheName.Contains("p5")) 
+            //    return "MemtierBenchmarkTestP";
+
+            //if ((cacheName.Contains("c0") || cacheName.Contains("c1") || cacheName.Contains("c2") || cacheName.Contains("c3") || cacheName.Contains("c4") || cacheName.Contains("c5") || cacheName.Contains("c6")) && cacheName.Contains("standard"))
+            //{
+            //    return "MemtierBenchmarkTestSC";
+            //}
+            //if ((cacheName.Contains("c0") || cacheName.Contains("c1") || cacheName.Contains("c2") || cacheName.Contains("c3") || cacheName.Contains("c4") || cacheName.Contains("c5") || cacheName.Contains("c6")) && cacheName.Contains("basic"))
+            //{
+            //    return "MemtierBenchmarkTestBC";
+            //}
 
             throw new ArgumentException($"Invalid cache name: {cacheName}");
         }

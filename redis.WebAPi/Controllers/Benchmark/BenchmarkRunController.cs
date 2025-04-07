@@ -25,6 +25,43 @@ namespace Benchmark_API.Controllers
             _serviceProvider = serviceProvider;
         }
 
+        public class ExecuteAllTasksRequest
+        {
+            public string GroupName { get; set; }
+            public DateTime Time { get; set; }
+        }
+
+        [HttpPost("ExecuteAllTasks")]
+        public async Task<IActionResult> ExecuteAllTasks([FromBody] ExecuteAllTasksRequest request)
+        {
+            var groupName = request.GroupName;
+            var time = request.Time;
+
+            // 调用 InsertQCommandByGroupName 接口
+            var insertResult = await InsertQCommandByGroupName(groupName);
+            if (insertResult is not OkResult)
+            {
+                return BadRequest("InsertQCommandByGroupName failed.");
+            }
+
+            // 调用 ExecutePendingTasks 接口
+            var executeResult = await ExecutePendingTasks();
+            if (executeResult is not OkResult)
+            {
+                return BadRequest("ExecutePendingTasks failed.");
+            }
+
+            // 调用 FinalDataTest 接口
+            var finalDataResult = await FinalData(time);
+            if (finalDataResult is not OkResult)
+            {
+                return BadRequest("FinalDataTest failed.");
+            }
+
+            return Ok("All tasks executed successfully.");
+        }
+
+
         [HttpPost("execute-tasks")]
         public async Task<IActionResult> ExecutePendingTasks()
         {
@@ -75,7 +112,7 @@ namespace Benchmark_API.Controllers
         }
 
         [HttpPost("InsertQCommandByGroupName")]
-        public async Task<IActionResult> InertQCommandByGroupName([FromBody] string groupName) 
+        public async Task<IActionResult> InsertQCommandByGroupName([FromBody] string groupName) 
         {
             var list = _connectionVMService.GeneratingQCommendByGroupResourse(groupName).Result;
             try
@@ -118,6 +155,7 @@ namespace Benchmark_API.Controllers
                 return StatusCode(500, new { message = "Error occurred during benchmark execution", error = ex.Message });
             }
         }
+
 
         // Receive the front-end parameters, then put them into the database and invoke the VM operation
         [HttpPost("enqueue")]
