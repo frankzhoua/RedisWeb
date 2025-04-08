@@ -1,31 +1,16 @@
-import React from 'react';
-import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
+import React, { useEffect, useState } from 'react';
+import {
+    Typography, Box, Grid, TextField, Table, TableBody, TableCell, TableContainer,
+    TableHead, TableRow, Paper, Button, Backdrop, CircularProgress, Alert,
+    FormControl, Autocomplete, Snackbar
+} from '@mui/material';
+import { Card, CardContent } from '@mui/material';
 import ComputerIcon from '@mui/icons-material/Computer';
 import CircleIcon from '@mui/icons-material/Circle';
-import TextField from '@mui/material/TextField';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
-import Button from '@mui/material/Button';
-import { useEffect,useState } from 'react';
-import Backdrop from '@mui/material/Backdrop';
-import CircularProgress from '@mui/material/CircularProgress';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import agent from '@/app/api/agent';
-import { Card, CardContent } from '@mui/material'
-import DatePicker from 'react-datepicker'; // 用于日期选择
-import 'react-datepicker/dist/react-datepicker.css'; // 引入日期选择样式
 import axios from 'axios';
-import {
-    Alert,
-    FormControl,
-    Autocomplete,
-} from '@mui/material'
 
 const vmList = [
     { name: 'P1P2', status: 'on' },
@@ -72,111 +57,111 @@ const tableData = [
     },
 ];
 
-
 const Routine = () => {
     const [cacheDate, setCacheDate] = useState('');
-    const [group, setGroup] = useState('')
-    const [groupList, setGroupList] = useState<string[]>([])
-    const [errors, setErrors] = useState<{ [key: string]: string }>({})
-    const [subscription, setSubscription] = useState('')
-    const [insertMessage, setInsertMessage] = useState('');
+    const [group, setGroup] = useState('');
+    const [groupList, setGroupList] = useState<string[]>([]);
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
+    const [subscription, setSubscription] = useState('');
     const [loading, setLoading] = useState(false);
-      // 这里指定 selectedDate 的类型为 Date 或 null
-    const [selectedDate, setSelectedDate] = useState<Date | null>(null); 
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
+    // Snackbar 状态
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info' | 'warning'>('info');
 
-    // Initialize
+    const showSnackbar = (message: string, severity: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+        setSnackbarMessage(message);
+        setSnackbarSeverity(severity);
+        setSnackbarOpen(true);
+    };
+
+    const handleSnackbarClose = () => {
+        setSnackbarOpen(false);
+    };
+
     useEffect(() => {
-        setSubscription('1e57c478-0901-4c02-8d35-49db234b78d2')
+        setSubscription('1e57c478-0901-4c02-8d35-49db234b78d2');
         agent.Create.getGroup('1e57c478-0901-4c02-8d35-49db234b78d2')
             .then((response) => {
                 const sortedResponse = response.sort(
-                    (a: string, b: string) => a.toLowerCase().localeCompare(b.toLowerCase()) // Sort ignoring case
-                )
-                setGroupList(sortedResponse)
+                    (a: string, b: string) => a.toLowerCase().localeCompare(b.toLowerCase())
+                );
+                setGroupList(sortedResponse);
             })
-            .catch((error) => console.log(error.response))
-    }, [])
+            .catch((error) => {
+                console.log(error.response);
+                showSnackbar('Failed to load the Group list', 'error');
+            });
+    }, []);
 
     const handleInsertGroup = async () => {
         if (!group) {
-            alert("请输入 Group Name！");
+            showSnackbar("Please select Group Name!", "warning");
             return;
         }
-    
-        setLoading(true); // 显示加载框
-    
+
+        setLoading(true);
         try {
             await axios.post(
                 "https://localhost:7179/api/BenchmarkRun/InsertQCommandByGroupName",
                 JSON.stringify(group),
-                {
-                    headers: {
-                        "Content-Type": "application/json"
-                    }
-                }
+                { headers: { "Content-Type": "application/json" } }
             );
-            setInsertMessage("Successfully inserted into the queue, please click the 'Run' button to run");
-            alert("Success！");
+            showSnackbar("Insert successful, ready to execute!", "success");
         } catch (error) {
             console.error("Insert failed:", error);
-            alert("Insert failed, please check whether the service is running properly!");
+            showSnackbar("Failed, please check whether the service is running properly!", "error");
         } finally {
-            setLoading(false); // 无论成功失败都隐藏加载框
+            setLoading(false);
         }
     };
+
     const handleRunTasks = async () => {
-        setLoading(true); // 显示加载框
+        setLoading(true);
         try {
-            // 发送请求到后端，注意这里只是发起请求，不关心后端是否完成
-            axios.post("https://localhost:7179/api/BenchmarkRun/execute-tasks", {}, {
-                headers: {
-                    "Content-Type": "application/json"
-                }
+            await axios.post("https://localhost:7179/api/BenchmarkRun/execute-tasks", {}, {
+                headers: { "Content-Type": "application/json" }
             });
-    
-            // 请求发送成功后立即弹出提示
-            alert("The task run request has been sent, go to the Statistics page to see how it is running!");
+            showSnackbar("The execution request has been sent, please go to the Statistics page to check the running status", "info");
         } catch (error) {
             console.error("Run tasks failed:", error);
-            alert("Task running request failed, please check whether the service is running properly!");
+            showSnackbar("Failed, please check whether the service is running properly!", "error");
         } finally {
-            setLoading(false); // 无论成功失败都隐藏加载框
+            setLoading(false);
         }
     };
-    
+
     const handleFetchResult = async () => {
         if (!selectedDate) {
-            alert('Make sure that Date is selected');
+            showSnackbar('Please select a date!', 'warning');
             return;
         }
-    
-        setLoading(true); // 显示加载框
+
+        setLoading(true);
         try {
-            await axios.post("https://localhost:7179/api/BenchmarkRun/FinalDataTest", 
-            selectedDate,  // 直接传递时间字段
-            {
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            });
-            alert("The results have been processed, you can go below to get the results!");
+            await axios.post(
+                "https://localhost:7179/api/BenchmarkRun/FinalDataTest",
+                selectedDate,
+                { headers: { "Content-Type": "application/json" } }
+            );
+            showSnackbar("Processing is finished, you can download the results!", "success");
         } catch (error) {
             console.error("Fetch result failed:", error);
-            alert("Task running request failed, please check whether the service is running properly!");
+            showSnackbar("Failed, please check whether the service is running properly!", "error");
         } finally {
-            setLoading(false); // 无论成功失败都隐藏加载框
+            setLoading(false);
         }
     };
-    
-    // 处理输入框变化
+
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setCacheDate(event.target.value);
     };
-     // 发送请求并下载 TXT 文件
+
     const fetchAndDownloadTxt = async () => {
         if (!cacheDate) {
-            alert("请输入 Cache Date!");
+            showSnackbar("Please enter Cache Date!", "warning");
             return;
         }
 
@@ -186,7 +171,6 @@ const Routine = () => {
                 { responseType: "blob" }
             );
 
-            // 创建 Blob 并下载文件
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement("a");
             link.href = url;
@@ -194,9 +178,11 @@ const Routine = () => {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+
+            showSnackbar("Download success!", "success");
         } catch (error) {
             console.error("Error downloading the file:", error);
-            alert("Download failed, please check whether the server is running properly!");
+            showSnackbar("Download failed, please check whether the service is running properly!", "error");
         }
     };
 
@@ -231,7 +217,7 @@ const Routine = () => {
             </Box>
 
             <Box mt={5} display="flex" justifyContent="flex-start" width="50vw" sx={{ marginLeft: '-50px', overflowX: 'auto' }}>
-                <TableContainer component={Paper} sx={{ width: '90%', maxWidth: 1200, borderRadius: '0px', boxShadow: 3, overflowX: 'auto' }}>
+                <TableContainer component={Paper} sx={{ width: '90%', maxWidth: 1200, borderRadius: '0px', boxShadow: 3 }}>
                     <Typography variant="h6" sx={{ p: 2, fontWeight: 'bold', borderBottom: '2px solid #1976d2', textAlign: 'center' }}>
                         Cache SKU Test configuration
                     </Typography>
@@ -265,9 +251,8 @@ const Routine = () => {
                     </Table>
                 </TableContainer>
             </Box>
-            
+
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 3, gap: 3 }}>
-                {/* Select Group + 插入运行队列 */}
                 <Box sx={{ width: '100%', maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <Box display="flex" alignItems="center" justifyContent="space-between">
                         <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
@@ -293,68 +278,32 @@ const Routine = () => {
                             />
                         </FormControl>
                     </Box>
-                     {/* Select Date */}
+
                     <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                        Select Date:
-                    </Typography>
-                    <DatePicker
-                        selected={selectedDate}
-                        onChange={(date) => setSelectedDate(date)}
-                        dateFormat="Pp" // 显示日期和时间
-                        placeholderText="Select a date"
-                    />
+                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                            Select Date:
+                        </Typography>
+                        <DatePicker
+                            selected={selectedDate}
+                            onChange={(date) => setSelectedDate(date)}
+                            dateFormat="Pp"
+                            placeholderText="Select a date"
+                        />
                     </Box>
-                            {/* Insert, Run, and Result Buttons */}
-                <Box sx={{ display: 'flex', gap: 2, width: '100%', justifyContent: 'space-between' }}>
-                    {/* Insert Button */}
-                    <Button
-                        variant="contained"
-                        sx={{
-                            width: '30%',
-                            borderRadius: '8px',
-                            background: '#1976d2',
-                            '&:hover': { background: '#1565c0' },
-                            height: '48px',
-                        }}
-                        onClick={handleInsertGroup}
-                    >
-                        Insert
-                    </Button>
 
-                    {/* Run Button */}
-                    <Button
-                        variant="contained"
-                        sx={{
-                            width: '30%',
-                            borderRadius: '8px',
-                            background: '#1976d2',
-                            '&:hover': { background: '#1565c0' },
-                            height: '48px',
-                        }}
-                        onClick={handleRunTasks}
-                    >
-                        Run
-                    </Button>
-
-                    {/* Result Button */}
-                    <Button
-                        variant="contained"
-                        sx={{
-                            width: '30%',
-                            borderRadius: '8px',
-                            background: '#1976d2',
-                            '&:hover': { background: '#1565c0' },
-                            height: '48px',
-                        }}
-                        onClick={handleFetchResult}
-                    >
-                        Result
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 2, width: '100%', justifyContent: 'space-between' }}>
+                        <Button variant="contained" sx={{ width: '30%', borderRadius: '8px' }} onClick={handleInsertGroup}>
+                            Insert
+                        </Button>
+                        <Button variant="contained" sx={{ width: '30%', borderRadius: '8px' }} onClick={handleRunTasks}>
+                            Run
+                        </Button>
+                        <Button variant="contained" sx={{ width: '30%', borderRadius: '8px' }} onClick={handleFetchResult}>
+                            Result
+                        </Button>
+                    </Box>
                 </Box>
-                        </Box>
 
-                {/* Select Cache Date + 查找结果 */}
                 <Box sx={{ width: '100%', maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <Box display="flex" alignItems="center" justifyContent="space-between">
                         <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
@@ -369,31 +318,28 @@ const Routine = () => {
                             sx={{ width: 250 }}
                         />
                     </Box>
-                    <Button
-                        variant="contained"
-                        sx={{
-                            width: '100%',
-                            borderRadius: '8px',
-                            background: '#1976d2',
-                            '&:hover': { background: '#1565c0' },
-                            height: '48px', // 保持一致
-                        }}
-                        onClick={fetchAndDownloadTxt}
-                    >
+                    <Button variant="contained" sx={{ width: '100%', borderRadius: '8px' }} onClick={fetchAndDownloadTxt}>
                         查找结果
                     </Button>
                 </Box>
             </Box>
 
-            <Backdrop
-                sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
-                open={loading}
-            >
+            <Backdrop sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }} open={loading}>
                 <CircularProgress color="inherit" />
             </Backdrop>
 
+            {/* Snackbar 弹出提示框 */}
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={4000}
+                onClose={handleSnackbarClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
+                    {snackbarMessage}
+                </Alert>
+            </Snackbar>
         </React.Fragment>
-        
     );
 };
 
