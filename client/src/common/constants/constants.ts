@@ -41,8 +41,31 @@ export const BVTTestCaseNames = [
     'LocalizationTest',
 ]
 
-// Test case list for manual tests
-export const ManualTestCaseNames = ['8672', '8659', '8673']
+// Test case list
+export const ManualTestCaseNames = [
+    '15318672: Verify portal E2E',   //Need to create manually
+    '15318659: Verify Redis Enterprise persistence scenarios',
+    '15318673: Verify zone redundant multi-replica cache',
+    '15318674: Verify VNET injected cache scenario',
+    '15318675: Verify Regenerate Keys scenario',
+    '15319070: Verify Cluster scaling scenarios', 
+    '15319116: Verify MRPP scaling scenarios',
+    '15320703: Verify geo-replication operations',
+    '15379626: Premium cache with private link', //Need to create manually
+    '15379676: Clustered and non-clustered premium cache AOF/RDB persistence',
+    '15379764: Clustered AOF enabled cache in VNET',
+    '15379484: Premium cache',
+    '15379874: Clustered MRPP cache in VNET', 
+    '15380305: Clustered geo-replicated cache',
+    '21253924: Verify Azure Watson crash dump integration',
+    '16021106: Geo DNS records should start pointing to new Secondary domain after the Geo Failover.',
+    '16021140: Initiate Geo failover on Geo Secondary after rebooting Geo Primary',
+    '16021226: Perform Geo Failover from UX and validate states and notifications',
+    '24879297: Verify OSS cache deletion scenario',//Need to create manually
+    '25064413: Verify cache creation with AAD', //Requires API creation
+    '26639809: Enterprise Redis geo-replicated database updates', //Requires API creation
+]
+
 
 export const user = {
     avatar: `https://www.gravatar.com/avatar/${md5('v-xinzhang6@microsoft.com')}?d=identicon`, // d=identicon means if no matching avatar is found, it will return a default icon avatar

@@ -1,17 +1,40 @@
 import React, { useEffect, useState } from 'react'
-import { Box, Button, FormControl, TextField, CircularProgress, MenuItem, Typography } from '@mui/material'
+import {
+    Box,
+    Button,
+    RadioGroup,
+    SelectChangeEvent,
+    Radio,
+    FormControl,
+    FormControlLabel,
+    TextField,
+    CircularProgress,
+    MenuItem,
+    Typography,
+    InputLabel,
+    Select,
+    OutlinedInput,
+    Checkbox,
+    FormHelperText,
+    ListItemText,
+} from '@mui/material'
 import { Autocomplete } from '@mui/material'
 import agent from '../../../app/api/agent'
 import { ManModel } from '../../../common/models/DataModel'
 import { handleGenericSubmit } from '../../../app/util/util'
+import { ManualTestCaseNames, Overlay, subscriptionList } from '../../../common/constants/constants'
+import LoadingComponent from '@/common/components/CustomLoading'
 
 const ManPage: React.FC = () => {
     const [subscription, setSubscription] = useState('')
     const [group, setGroup] = useState('')
-    const [region, setRegion] = useState('')
     const [groupList, setGroupList] = useState<string[]>([])
     const [loading, setLoading] = useState(false)
     const [errors, setErrors] = useState<{ [key: string]: string }>({})
+    const [selectedNames, setSelectedNames] = useState<string[]>([])
+    const [quantity, setQuantity] = useState('')
+    const [option, setOption] = useState('case')
+    const [name, setName] = useState('')
 
     // Initialize load
     useEffect(() => {
@@ -36,17 +59,47 @@ const ManPage: React.FC = () => {
         const newErrors: { [key: string]: string } = {}
         if (!subscription) newErrors.subscription = 'Subscription cannot be empty'
         if (!group) newErrors.group = 'Group cannot be empty'
-        if (!region) newErrors.region = 'Region cannot be empty'
+        if (selectedNames.length === 0) newErrors.selectedNames = 'Select at least one case'
+        if (selectedNames.length === 1 && quantity.trim() === '') newErrors.quantity = 'Quantity cannot be empty'
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
     }
-
+    const handleSelectChange = (event: SelectChangeEvent<string[]>) => {
+        const value = event.target.value as string[]
+        setSelectedNames(value)
+        if (value.length > 0) {
+            setErrors((prevErrors) => ({ ...prevErrors, selectedNames: '' }))
+        }
+    }
+    const handleInputChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { value } = event.target
+        switch (field) {
+            case 'name':
+                setName(value)
+                setErrors((prevErrors) => ({ ...prevErrors, name: '' }))
+                break
+            case 'quantity':
+                setQuantity(value)
+                setErrors((prevErrors) => ({ ...prevErrors, quantity: '' }))
+                break
+            default:
+                break
+        }
+    }
     // Submit handler
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault()
         if (!checkForm()) return
 
-        const data: ManModel = { region, subscription, group }
+        const data: ManModel = {
+            name,
+            subscription,
+            group,
+            ...(option === 'case' && {
+                cases: selectedNames,
+                ...(selectedNames.length === 1 && { quantity: quantity }),
+            }),
+        }
         const customMessage = 'Once started, the cache used in MAN will be created!'
         handleGenericSubmit(event, data, () => agent.Create.sendManJson(data), checkForm, setLoading, customMessage)
     }
@@ -110,23 +163,66 @@ const ManPage: React.FC = () => {
                         />
                     </FormControl>
 
-                    <FormControl variant="outlined" sx={{ width: '100%', marginTop: 2 }}>
-                        <TextField
-                            select
-                            label="Region"
-                            value={region}
-                            onChange={(e) => setRegion(e.target.value)}
-                            error={!!errors.region}
-                            helperText={errors.region}
-                            fullWidth
-                        >
-                            {['East US 2 EUAP', 'Central US EUAP', 'East US'].map((item) => (
-                                <MenuItem key={item} value={item}>
-                                    {item}
-                                </MenuItem>
-                            ))}
-                        </TextField>
+                    <FormControl component="fieldset" sx={{ marginTop: 2 }}>
+                        <RadioGroup row value={option} onChange={(e) => setOption(e.target.value)}>
+                            {/* <FormControlLabel value="all" control={<Radio />} label="All" /> */}
+                            <FormControlLabel value="case" control={<Radio />} label="Case" />
+                        </RadioGroup>
                     </FormControl>
+
+                    {option === 'case' && (
+                        <>
+                            <FormControl
+                                variant="outlined"
+                                sx={{ width: '100%', marginTop: 2 }}
+                                error={!!errors.selectedNames}
+                            >
+                                <InputLabel id="names-label">Case</InputLabel>
+                                <Select
+                                    labelId="names-label"
+                                    multiple
+                                    value={selectedNames}
+                                    onChange={handleSelectChange}
+                                    input={<OutlinedInput label="Case" />}
+                                    renderValue={(selected) =>
+                                        selected.length > 2 ? `Select  ${selected.length} ` : selected.join(', ')
+                                    }
+                                >
+                                    {ManualTestCaseNames.map((name) => {
+                                        const isDisabled =
+                                            name.startsWith('15318672') ||
+                                            name.startsWith('15379626') ||
+                                            name.startsWith('24879297')
+                                        return (
+                                            <MenuItem
+                                                key={name}
+                                                value={name}
+                                                disabled={isDisabled}
+                                                sx={isDisabled ? { color: 'red' } : {}}
+                                            >
+                                                <Checkbox checked={selectedNames.includes(name)} />
+                                                <ListItemText primary={name} />
+                                            </MenuItem>
+                                        )
+                                    })}
+                                </Select>
+                                {errors.selectedNames && <FormHelperText error>{errors.selectedNames}</FormHelperText>}
+                            </FormControl>
+
+                            {selectedNames.length === 1 && (
+                                <TextField
+                                    label="quantity"
+                                    type="number"
+                                    value={quantity}
+                                    onChange={handleInputChange('quantity')}
+                                    variant="outlined"
+                                    error={!!errors.quantity}
+                                    helperText={errors.quantity}
+                                    sx={{ width: '100%', marginTop: 2 }}
+                                />
+                            )}
+                        </>
+                    )}
 
                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                         <Button
@@ -146,7 +242,7 @@ const ManPage: React.FC = () => {
                             onClick={() => {
                                 setSubscription('')
                                 setGroup('')
-                                setRegion('')
+                                setSelectedNames([])
                                 setErrors({})
                             }}
                             sx={{ mx: 1, textTransform: 'none' }}
@@ -157,9 +253,9 @@ const ManPage: React.FC = () => {
                 </Box>
             </form>
             {loading && (
-                <Box sx={{ mt: 2 }}>
-                    <CircularProgress />
-                </Box>
+                <Overlay>
+                    <LoadingComponent message="Submitting, please wait..." />
+                </Overlay>
             )}
         </Box>
     )

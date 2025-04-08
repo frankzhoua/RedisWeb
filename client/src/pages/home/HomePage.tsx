@@ -109,7 +109,7 @@ const HomePage: React.FC = () => {
                 </ImageWrapper>
 
                 {/* Navigation arrows */}
-                <IconButton
+                {/* <IconButton
                     onClick={handlePrev}
                     sx={{
                         position: 'absolute',
@@ -135,9 +135,9 @@ const HomePage: React.FC = () => {
                     }}
                 >
                     <ArrowForwardIosIcon fontSize="large" />
-                </IconButton>
+                </IconButton> */}
 
-                {/* Indicator dots */}
+                {/* Indicator dots
                 <Indicator>
                     {images.map((_, index) => (
                         <IndicatorDot
@@ -151,7 +151,7 @@ const HomePage: React.FC = () => {
                             }}
                         />
                     ))}
-                </Indicator>
+                </Indicator> */}
             </Hero>
         </Box>
     )

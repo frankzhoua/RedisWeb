@@ -95,7 +95,7 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 // Map SignalR Hub
-app.MapHub<CreateHub>("/createHub");
+app.MapHub<CreateHub>("/api/createHub");
 
 // Map controllers
 app.MapControllers();

@@ -66,7 +66,9 @@ namespace redis.WebAPi.Service.CreationFunction
                 parameters.RedisConfiguration = options.redisCommonConfiguration;
             }
 
-            parameters.RedisConfiguration.AdditionalProperties.Add("CacheVmType", BinaryData.FromString("\"IaaS\""));
+            //parameters.RedisConfiguration.AdditionalProperties.Add("CacheVmType", BinaryData.FromString("\"IaaS\""));
+            parameters.RedisConfiguration.AdditionalProperties["CacheVmType"] = BinaryData.FromString("\"IaaS\"");
+
 
             if (skuobj.Name.ToString() == "Premium" && options.MinShards.HasValue && options.Cluster.HasValue && options.Cluster.Value)
             {

@@ -22,13 +22,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [token, setToken] = useState<string | null>(localStorage.getItem('authToken'))
     const [currentForm, setCurrentForm] = useState<'login' | 'signup' | 'forgotPassword'>('login')
     const [role, setRole] = useState<'admin' | 'user'>('user') // Default role is a regular user
-    const [name, setName] = useState<string>('') // Manage the username
+    const [name, setName] = useState<string>(localStorage.getItem('username') || '') // 从 localStorage 读取 name
 
     useEffect(() => {
         if (token) {
             setIsLoggedIn(true) // If a token exists, set to logged in
         }
     }, [token])
+
+    // 监听 `name` 变化，并存入 localStorage
+    useEffect(() => {
+        if (name) {
+            localStorage.setItem('username', name) // 存储到 localStorage
+        } else {
+            localStorage.removeItem('username') // 清除存储
+            setCurrentForm('login') // name 为空时，切换到 login
+        }
+    }, [name])
 
     return (
         <AuthContext.Provider

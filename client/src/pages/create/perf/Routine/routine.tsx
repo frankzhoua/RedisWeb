@@ -13,8 +13,8 @@ import agent from '@/app/api/agent';
 import axios from 'axios';
 
 const vmList = [
-    { name: 'P1P2', status: 'on' },
-    { name: 'P3P4', status: 'off' },
+    { name: 'P1,P2', status: 'on' },
+    { name: 'P3,P4', status: 'off' },
     { name: 'P5', status: 'on' },
     { name: 'SC0,C1', status: 'on' },
     { name: 'SC2,C3', status: 'off' },

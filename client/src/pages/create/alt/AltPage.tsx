@@ -224,7 +224,7 @@ const AltPage: React.FC = () => {
             </form>
             {loading && (
                 <Overlay>
-                    <LoadingComponent />
+                    <LoadingComponent message="Submitting, please wait..." />
                 </Overlay>
             )}
         </Box>

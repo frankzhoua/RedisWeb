@@ -3,6 +3,7 @@ import { Box, Button, Typography, TextField } from '@mui/material'
 import swal from 'sweetalert'
 import { Overlay } from '../../../common/constants/constants'
 import LoadingComponent from '../../../common/components/CustomLoading'
+import agent from '@/app/api/agent'
 
 const MedianPage: React.FC = () => {
     const [folderPath, setFolderPath] = useState<string>('D:\\Tests\\Alt\\Latency') // Default path
@@ -32,33 +33,22 @@ const MedianPage: React.FC = () => {
                 setLoading(true)
 
                 // Send the folder path to the backend using fetch to get the Excel file
-                fetch('https://localhost:7179/api/Median/sendMedianJson', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ path: folderPath }),
-                })
+                agent.Other.sendMedianJson({ path: folderPath })
                     .then((response) => {
-                        if (response.ok) {
-                            // The response contains the Excel file content
-                            return response.blob()
-                        } else {
-                            throw new Error('Unable to generate report')
-                        }
-                    })
-                    .then((blob) => {
-                        // Create a Blob URL
+                        const blob = new Blob([response.data], {
+                            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        })
                         const downloadUrl = URL.createObjectURL(blob)
                         const link = document.createElement('a')
                         link.href = downloadUrl
-                        link.download = 'Median_Report.xlsx' // Set the download file name
-                        link.click() // Trigger the download
+                        link.download = 'Median_Report.xlsx'
+                        link.click()
+
                         swal('Success!', 'Folder processed successfully! Excel report has been downloaded!', 'success')
                     })
                     .catch((error) => {
                         console.error(error)
-                        swal('Error!', 'An error occurred while processing the folder', 'error')
+                        swal('Error!', error?.data?.message || 'An error occurred while processing the folder', 'error')
                     })
                     .finally(() => {
                         setLoading(false)

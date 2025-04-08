@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { HubConnectionBuilder, HubConnection } from '@microsoft/signalr'
+import agent from '../api/agent'
+import axios from 'axios'
 
 // Type definition for SignalContext
 interface SignalContextType {
@@ -26,7 +28,7 @@ export const SignalProvider: React.FC<SignalProviderProps> = ({ children }) => {
     useEffect(() => {
         // Create and initialize SignalR connection
         const newConnection = new HubConnectionBuilder()
-            .withUrl('https://localhost:7179/createHub', { withCredentials: true })
+            .withUrl(`${axios.defaults.baseURL}${agent.SignalR.hubUrl}`, { withCredentials: true })
             .build()
 
         // Start the connection

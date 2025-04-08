@@ -259,7 +259,7 @@ const GroupPage: React.FC = () => {
                         variant="contained"
                         color="primary"
                         sx={{ mx: 1, textTransform: 'none' }}
-                        disabled={loading || !showResourceBox} // Add showResourceBox as disable condition
+                        disabled={loading || !showResourceBox || resourceList.length === 0} // Add showResourceBox as disable condition
                     >
                         Submit
                     </Button>

@@ -14,7 +14,10 @@ export interface PerfModel {
     sku?: string
 }
 export interface ManModel {
+    name?: string
     subscription?: string
     group?: string
     region?: string
+    cases?: string[]
+    quantity?: string
 }
