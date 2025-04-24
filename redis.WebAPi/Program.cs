@@ -60,6 +60,8 @@ builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
     //containerBuilder.RegisterType<BenchmarkQueueProcessor>().As<IHostedService>().InstancePerLifetimeScope();
     containerBuilder.RegisterType<ConnectionVMService>().InstancePerDependency();
     containerBuilder.RegisterType<AzureClientFactory>().SingleInstance();
+    containerBuilder.RegisterType<TestPlanDiff>().SingleInstance();
+    containerBuilder.RegisterType<SnapshotService>().SingleInstance();
     containerBuilder.RegisterType<SubscriptionResourceService>().As<ISubscriptionResourceService>().SingleInstance();
     containerBuilder.RegisterType<RedisCollectionService>().As<IRedisCollection>().SingleInstance();
     containerBuilder.RegisterType<StackExchangeService>().As<IStackExchangeService>().SingleInstance();
